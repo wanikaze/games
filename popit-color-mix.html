@@ -1,0 +1,1160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Pop It! Color Mix</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;800;900&family=Fredoka+One&display=swap');
+
+:root {
+  --bg1: #1a0a2e;
+  --bg2: #2d1060;
+  --panel: rgba(255,255,255,0.07);
+  --panel-border: rgba(255,255,255,0.15);
+  --text: #f0e6ff;
+  --dim: rgba(255,255,255,0.4);
+  --shadow: rgba(0,0,0,0.4);
+  --c-red:    #ff4466;
+  --c-orange: #ff8c00;
+  --c-yellow: #ffd600;
+  --c-green:  #22dd66;
+  --c-cyan:   #00ddff;
+  --c-blue:   #4488ff;
+  --c-purple: #aa44ff;
+  --c-pink:   #ff44cc;
+  --c-white:  #ffffff;
+  --c-lime:   #aaff00;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; touch-action: manipulation; -webkit-tap-highlight-color: transparent; user-select: none; }
+
+body {
+  min-height: 100vh;
+  background: radial-gradient(ellipse at 40% 20%, #3a1080 0%, #1a0a2e 60%, #0a0518 100%);
+  display: flex; flex-direction: column; align-items: center;
+  font-family: 'Nunito', sans-serif; color: var(--text); overflow: hidden;
+}
+
+body::before {
+  content: ''; position: fixed; inset: 0; pointer-events: none;
+  background-image:
+    radial-gradient(1px 1px at 15% 20%, rgba(255,255,255,0.5) 0%, transparent 100%),
+    radial-gradient(1px 1px at 75% 15%, rgba(255,255,255,0.4) 0%, transparent 100%),
+    radial-gradient(1px 1px at 55% 70%, rgba(255,255,255,0.3) 0%, transparent 100%),
+    radial-gradient(1px 1px at 30% 80%, rgba(255,255,255,0.4) 0%, transparent 100%),
+    radial-gradient(1px 1px at 85% 60%, rgba(255,255,255,0.3) 0%, transparent 100%),
+    radial-gradient(2px 2px at 90% 10%, rgba(255,255,255,0.6) 0%, transparent 100%),
+    radial-gradient(2px 2px at 10% 50%, rgba(255,255,255,0.5) 0%, transparent 100%);
+}
+
+#app {
+  width: 100%; max-width: 420px; min-height: 100vh;
+  display: flex; flex-direction: column; align-items: center;
+  position: relative; z-index: 1; padding-bottom: 12px;
+}
+
+#header { width: 100%; padding: 10px 16px 6px; text-align: center; }
+
+#game-title {
+  font-family: 'Fredoka One', cursive;
+  font-size: clamp(24px, 7vw, 36px);
+  background: linear-gradient(135deg, #ff88ff, #88aaff, #44ffcc);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text;
+  filter: drop-shadow(0 2px 8px rgba(180,100,255,0.5));
+  letter-spacing: 1px; line-height: 1;
+}
+
+#mode-label {
+  font-size: 10px; font-weight: 800; letter-spacing: 4px;
+  color: var(--dim); text-transform: uppercase; margin-top: 2px;
+}
+
+#hud {
+  width: calc(100% - 24px); margin: 6px 12px 4px;
+  background: var(--panel); border: 1px solid var(--panel-border);
+  border-radius: 16px; padding: 8px 14px;
+  display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px;
+}
+
+.hud-block { display: flex; flex-direction: column; align-items: center; gap: 1px; }
+.hud-label { font-size: 7px; font-weight: 800; letter-spacing: 2px; color: var(--dim); text-transform: uppercase; }
+.hud-value { font-family: 'Fredoka One', cursive; font-size: clamp(18px, 5vw, 26px); line-height: 1; }
+#score-val { color: #88ffcc; text-shadow: 0 0 10px rgba(136,255,204,0.5); }
+#info-val  { color: #ffcc44; text-shadow: 0 0 10px rgba(255,204,68,0.5); }
+#hi-val    { color: #ff88ff; text-shadow: 0 0 10px rgba(255,136,255,0.4); }
+
+.hud-value.bump { animation: bump 0.18s ease; }
+@keyframes bump { 0%{transform:scale(1)} 50%{transform:scale(1.3)} 100%{transform:scale(1)} }
+
+#timer-wrap { width: calc(100% - 24px); margin: 2px 12px; height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; overflow: hidden; }
+#timer-bar { height: 100%; border-radius: 3px; transition: width 0.05s linear, background-color 0.5s ease; background: linear-gradient(90deg, #44ffcc, #88aaff); }
+
+#board-wrap {
+  flex: 1; width: 100%; display: flex; align-items: center;
+  justify-content: center; padding: 6px 12px;
+}
+
+#board {
+  width: 100%; max-width: 360px;
+  background: rgba(255,255,255,0.05);
+  border: 2px solid rgba(255,255,255,0.12);
+  border-radius: 28px; padding: 16px 12px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.1);
+  display: flex; flex-direction: column; gap: 10px;
+}
+
+.bubble-row {
+  display: flex; gap: 10px; justify-content: center;
+}
+
+.bubble {
+  flex: 0 0 auto;
+  width: calc((100% - 40px) / 4);
+  max-width: 78px;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  position: relative;
+  cursor: pointer;
+  transition: transform 0.06s ease;
+}
+
+.row-mid .bubble {
+  width: calc((100% - 50px) / 4);
+}
+
+.bubble:active { transform: scale(0.88); }
+
+.bubble-inner {
+  width: 100%; height: 100%; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  position: relative; overflow: hidden;
+  transition: background 0.08s ease, box-shadow 0.08s ease, filter 0.08s ease;
+  background: radial-gradient(circle at 35% 30%, #3a2060, #1a0a30);
+  box-shadow: inset 0 2px 6px rgba(0,0,0,0.6), 0 2px 8px rgba(0,0,0,0.4);
+  filter: brightness(1);
+  border: 2px solid rgba(255,255,255,0.08);
+}
+
+.bubble-inner::before {
+  content: ''; position: absolute;
+  top: 8%; left: 15%; width: 35%; height: 30%;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.25);
+  transform: rotate(-30deg);
+  pointer-events: none;
+}
+
+.bubble.lit .bubble-inner {
+  border: 2px solid rgba(255,255,255,0.4);
+}
+
+.bubble.popped .bubble-inner { animation: pop-anim 0.2s ease; }
+@keyframes pop-anim {
+  0%  { transform: scale(1); }
+  35% { transform: scale(0.78); }
+  70% { transform: scale(1.12); }
+  100%{ transform: scale(1); }
+}
+
+.bubble.wrong .bubble-inner { animation: wrong-shake 0.25s ease; }
+@keyframes wrong-shake {
+  0%  { transform: translateX(0); }
+  20% { transform: translateX(-5px); }
+  40% { transform: translateX(5px); }
+  60% { transform: translateX(-4px); }
+  80% { transform: translateX(4px); }
+  100%{ transform: translateX(0); }
+}
+
+.bubble.moving .bubble-inner {
+  animation: moving-pulse 0.3s infinite alternate;
+}
+@keyframes moving-pulse {
+  from { opacity: 0.7; transform: scale(0.95); }
+  to   { opacity: 1;   transform: scale(1); }
+}
+
+.bubble.stopped .bubble-inner {
+  animation: stopped-flash 0.15s ease 2;
+  box-shadow: 0 0 0 4px rgba(255,255,255,0.6), 0 0 20px rgba(255,255,255,0.4) !important;
+}
+@keyframes stopped-flash {
+  0%  { box-shadow: 0 0 0 4px rgba(255,255,255,0.8), 0 0 24px rgba(255,255,255,0.6); }
+  100%{ box-shadow: 0 0 0 4px rgba(255,255,255,0.4), 0 0 12px rgba(255,255,255,0.3); }
+}
+
+.float-text {
+  position: fixed; font-family: 'Fredoka One', cursive; font-size: 18px;
+  pointer-events: none; z-index: 600; animation: float-up 0.65s ease forwards;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.4);
+}
+@keyframes float-up { 0%{opacity:1;transform:translateY(0) scale(1)} 100%{opacity:0;transform:translateY(-44px) scale(1.15)} }
+
+#screen-flash { position: fixed; inset: 0; pointer-events: none; z-index: 500; opacity: 0; }
+
+#bottom { width: calc(100% - 24px); margin: 0 12px; text-align: center; min-height: 28px; }
+#status-text { font-family: 'Fredoka One', cursive; font-size: clamp(13px, 4vw, 17px); color: var(--dim); letter-spacing: 1px; }
+
+#vol-wrap {
+  width: calc(100% - 24px); margin: 6px 12px 0;
+  display: flex; align-items: center; justify-content: center;
+}
+#vol-btn {
+  font-family: 'Fredoka One', cursive; font-size: 13px;
+  background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 20px; padding: 6px 18px; color: var(--text);
+  cursor: pointer; letter-spacing: 1px; transition: background 0.1s;
+}
+#vol-btn:active { background: rgba(255,255,255,0.18); }
+
+.screen {
+  position: fixed; inset: 0; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 14px;
+  z-index: 400; padding: 20px; text-align: center;
+  background: radial-gradient(ellipse at 50% 30%, #3a1080 0%, #1a0a2e 70%, #0a0518 100%);
+}
+.screen.hidden { display: none; }
+
+.screen-title {
+  font-family: 'Fredoka One', cursive; font-size: clamp(28px, 9vw, 46px);
+  background: linear-gradient(135deg, #ff88ff, #88aaff, #44ffcc);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text; filter: drop-shadow(0 2px 12px rgba(180,100,255,0.6));
+  line-height: 1;
+}
+
+#mode-cards { display: flex; flex-direction: column; gap: 8px; width: 100%; max-width: 320px; }
+
+.mode-card {
+  background: var(--panel); border: 1px solid var(--panel-border);
+  border-radius: 16px; padding: 12px 16px;
+  display: flex; align-items: center; gap: 12px;
+  cursor: pointer; transition: all 0.12s ease;
+}
+.mode-card:active { transform: scale(0.97); background: rgba(255,255,255,0.12); }
+
+.mode-icon { font-size: 28px; flex-shrink: 0; }
+.mode-info { text-align: left; flex: 1; }
+.mode-name { font-family: 'Fredoka One', cursive; font-size: 16px; color: var(--text); }
+.mode-desc { font-size: 10px; font-weight: 700; color: var(--dim); margin-top: 1px; }
+.mode-hi   { font-size: 9px; font-weight: 800; letter-spacing: 1px; color: #ff88ff; margin-top: 2px; }
+.mode-arrow { font-size: 18px; color: var(--dim); }
+
+#title-vol {
+  display: flex; align-items: center; justify-content: center;
+  width: 100%; max-width: 320px;
+}
+#title-vol-btn {
+  font-family: 'Fredoka One', cursive; font-size: 13px;
+  background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 20px; padding: 6px 18px; color: var(--text);
+  cursor: pointer; letter-spacing: 1px; transition: background 0.1s;
+}
+#title-vol-btn:active { background: rgba(255,255,255,0.18); }
+
+.result-card {
+  background: var(--panel); border: 1px solid var(--panel-border);
+  border-radius: 20px; padding: 16px 24px; width: 100%; max-width: 300px;
+}
+.result-score { font-family: 'Fredoka One', cursive; font-size: clamp(48px, 14vw, 68px); line-height: 1; color: #88ffcc; text-shadow: 0 0 20px rgba(136,255,204,0.5); }
+.result-rank  { font-family: 'Fredoka One', cursive; font-size: clamp(18px, 5vw, 24px); margin-top: 4px; }
+.result-detail{ font-size: 11px; font-weight: 700; color: var(--dim); margin-top: 6px; }
+
+.new-record { font-family: 'Fredoka One', cursive; font-size: 14px; color: #ffcc44; animation: blink-r 0.6s infinite; }
+@keyframes blink-r { 0%,100%{opacity:1} 50%{opacity:0.15} }
+
+.btn {
+  font-family: 'Fredoka One', cursive; font-size: 16px; padding: 12px 30px;
+  border-radius: 50px; border: none; cursor: pointer;
+  transition: transform 0.08s, box-shadow 0.08s;
+  box-shadow: 0 4px 0 rgba(0,0,0,0.3);
+}
+.btn:active { transform: translateY(3px); box-shadow: 0 1px 0 rgba(0,0,0,0.3); }
+.btn-purple { background: linear-gradient(180deg, #cc66ff, #8822cc); color: #fff; text-shadow: 0 1px 0 rgba(0,0,0,0.2); }
+.btn-cyan   { background: linear-gradient(180deg, #44ffcc, #00aaaa); color: #1a0a2e; }
+.btn-back   { background: rgba(255,255,255,0.1); color: var(--text); border: 1px solid var(--panel-border); box-shadow: none; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="header">
+    <div id="game-title">Pop It! Color Mix</div>
+    <div id="mode-label">Select a mode</div>
+  </div>
+
+  <div id="hud">
+    <div class="hud-block"><div class="hud-label">Score</div><div class="hud-value" id="score-val">0</div></div>
+    <div class="hud-block"><div class="hud-label" id="info-label">Level</div><div class="hud-value" id="info-val">—</div></div>
+    <div class="hud-block"><div class="hud-label">Best</div><div class="hud-value" id="hi-val">0</div></div>
+  </div>
+
+  <div id="timer-wrap"><div id="timer-bar" style="width:100%"></div></div>
+
+  <div id="board-wrap">
+    <div id="board">
+      <div class="bubble-row row-top"></div>
+      <div class="bubble-row row-mid"></div>
+      <div class="bubble-row row-bot"></div>
+    </div>
+  </div>
+
+  <div id="bottom"><div id="status-text">Choose a mode below</div></div>
+
+  <div id="vol-wrap">
+    <button id="vol-btn">🔊 Sound: ON</button>
+  </div>
+</div>
+
+<div id="screen-flash"></div>
+
+<div class="screen" id="title-screen">
+  <div class="screen-title">Pop It!<br>Color Mix</div>
+
+  <div id="mode-cards">
+    <div class="mode-card" id="card-cp">
+      <div class="mode-icon">🎨</div>
+      <div class="mode-info">
+        <div class="mode-name">Color Pop</div>
+        <div class="mode-desc">Pop the right color before time runs out</div>
+        <div class="mode-hi" id="hi-cp">BEST: 0</div>
+      </div>
+      <div class="mode-arrow">›</div>
+    </div>
+    <div class="mode-card" id="card-pp">
+      <div class="mode-icon">🧩</div>
+      <div class="mode-info">
+        <div class="mode-name">Pop It Pairs</div>
+        <div class="mode-desc">Match all pairs as fast as you can</div>
+        <div class="mode-hi" id="hi-pp">BEST: 0</div>
+      </div>
+      <div class="mode-arrow">›</div>
+    </div>
+    <div class="mode-card" id="card-sp">
+      <div class="mode-icon">⏸️</div>
+      <div class="mode-info">
+        <div class="mode-name">Stop &amp; Pop</div>
+        <div class="mode-desc">Pop when the light stops — not while moving</div>
+        <div class="mode-hi" id="hi-sp">BEST: 0</div>
+      </div>
+      <div class="mode-arrow">›</div>
+    </div>
+  </div>
+
+  <div id="title-vol">
+    <button id="title-vol-btn">🔊 Sound: ON</button>
+  </div>
+</div>
+
+<div class="screen hidden" id="gameover-screen">
+  <div class="screen-title" id="go-title">Game Over!</div>
+  <div class="new-record hidden" id="new-record-el">★ NEW RECORD ★</div>
+  <div class="result-card">
+    <div class="result-score" id="final-score-el">0</div>
+    <div class="result-rank"  id="final-rank-el"></div>
+    <div class="result-detail" id="final-detail-el"></div>
+  </div>
+  <button class="btn btn-purple" id="restart-btn">Play Again</button>
+  <button class="btn btn-back"   id="menu-btn">← Menu</button>
+</div>
+
+<script>
+let actx = null;
+let VOL = 0.5;
+
+function getCtx(){
+  if(!actx) actx = new (window.AudioContext||window.webkitAudioContext)();
+  if(actx.state==='suspended') actx.resume();
+  return actx;
+}
+function tone(f,type,dur,vol){
+  try{
+    const ac=getCtx(),o=ac.createOscillator(),g=ac.createGain();
+    o.connect(g);g.connect(ac.destination);o.type=type;o.frequency.value=f;
+    const v=vol*VOL;
+    g.gain.setValueAtTime(v,ac.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001,ac.currentTime+dur);
+    o.start();o.stop(ac.currentTime+dur);
+  }catch(e){}
+}
+function sweep(f1,f2,type,dur,vol){
+  try{
+    const ac=getCtx(),o=ac.createOscillator(),g=ac.createGain();
+    o.connect(g);g.connect(ac.destination);o.type=type;
+    o.frequency.setValueAtTime(f1,ac.currentTime);
+    o.frequency.exponentialRampToValueAtTime(f2,ac.currentTime+dur);
+    const v=vol*VOL;
+    g.gain.setValueAtTime(v,ac.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001,ac.currentTime+dur);
+    o.start();o.stop(ac.currentTime+dur);
+  }catch(e){}
+}
+function noise(dur,vol){
+  try{
+    const ac=getCtx(),buf=ac.createBuffer(1,ac.sampleRate*dur,ac.sampleRate);
+    const d=buf.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;
+    const src=ac.createBufferSource(),g=ac.createGain();
+    src.buffer=buf;src.connect(g);g.connect(ac.destination);
+    const v=vol*VOL;
+    g.gain.setValueAtTime(v,ac.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001,ac.currentTime+dur);
+    src.start();src.stop(ac.currentTime+dur);
+  }catch(e){}
+}
+
+const SFX = {
+  pop()    { sweep(400,250,'sine',0.1,0.4); noise(0.04,0.12); },
+  wrong()  { sweep(150,80,'sawtooth',0.25,0.4); noise(0.08,0.15); },
+  good()   { sweep(350,500,'sine',0.08,0.35); },
+  stop()   { tone(880,'sine',0.06,0.3); tone(1100,'sine',0.08,0.2); },
+  level()  { [440,554,659].forEach((f,i)=>setTimeout(()=>tone(f,'square',0.1,0.2),i*70)); },
+  win()    { [523,659,784,1047].forEach((f,i)=>setTimeout(()=>tone(f,'square',0.15,0.25),i*85)); },
+  over()   { sweep(220,80,'sawtooth',0.5,0.4); setTimeout(()=>sweep(130,60,'sawtooth',0.6,0.3),380); },
+  tick()   { tone(1200,'sine',0.04,0.15); },
+  start()  { [330,440,554,660].forEach((f,i)=>setTimeout(()=>tone(f,'square',0.08,0.18),i*75)); }
+};
+
+const DIGIT_MAP = { 1:0, 2:1, 3:2, 4:3, 5:4, 6:5, 7:6, 8:7, 9:8, 0:9 };
+
+const ADJACENT2 = {
+  0: [1, 3, 4],
+  1: [0, 2, 4, 5],
+  2: [1, 5, 6],
+  3: [0, 4, 7],
+  4: [0, 1, 3, 5, 7, 8],
+  5: [1, 2, 4, 6, 8, 9],
+  6: [2, 5, 9],
+  7: [3, 4, 8],
+  8: [4, 5, 7, 9],
+  9: [5, 6, 8]
+};
+
+const PAIR_COLORS = [
+  '#ff2244','#ff6600','#ffd600','#00ee44','#00ddff',
+  '#4488ff','#8800ff','#ff44cc','#ffffff','#ff0088',
+];
+
+const CP_COLORS = ['#ff4466','#ff8c00','#ffd600','#22dd66','#00ddff','#4488ff','#aa44ff','#ff44cc'];
+
+let bubbles = [];
+
+function buildBubbles() {
+  const rows = document.querySelectorAll('.bubble-row');
+  bubbles = [];
+  rows.forEach(row => row.innerHTML = '');
+
+  const counts = [3,4,3];
+  counts.forEach((n, ri) => {
+    const row = rows[ri];
+    for(let i=0;i<n;i++){
+      const el = document.createElement('div');
+      el.className = 'bubble';
+      const inner = document.createElement('div');
+      inner.className = 'bubble-inner';
+      el.appendChild(inner);
+      row.appendChild(el);
+      const idx = bubbles.length;
+      el.dataset.idx = idx;
+      bubbles.push({el, inner, idx});
+      el.addEventListener('pointerdown', e=>{ e.preventDefault(); onBubbleTap(idx); });
+    }
+  });
+}
+
+function setBubbleColor(idx, color, lit=true) {
+  const {el, inner} = bubbles[idx];
+  if(lit && color) {
+    inner.style.background = `radial-gradient(circle at 35% 30%, ${lighten(color,40)}, ${color})`;
+    inner.style.boxShadow = `0 0 0 3px ${color}66, 0 0 18px ${color}88, inset 0 2px 6px rgba(255,255,255,0.15)`;
+    inner.style.borderColor = `${color}88`;
+    el.classList.add('lit');
+  } else {
+    inner.style.background = '';
+    inner.style.boxShadow = '';
+    inner.style.borderColor = '';
+    el.classList.remove('lit');
+  }
+}
+
+function resetAllBubbles() {
+  bubbles.forEach((_,i)=>{
+    setBubbleColor(i, null, false);
+    bubbles[i].el.classList.remove('lit','moving','stopped','popped','wrong');
+  });
+}
+
+function lighten(hex, amt) {
+  const n = parseInt(hex.slice(1),16);
+  const r = Math.min(255,((n>>16)&0xff)+amt);
+  const g = Math.min(255,((n>>8)&0xff)+amt);
+  const b = Math.min(255,(n&0xff)+amt);
+  return `#${r.toString(16).padStart(2,'0')}${g.toString(16).padStart(2,'0')}${b.toString(16).padStart(2,'0')}`;
+}
+
+let currentMode = null;
+let timers = [];
+
+function clearAllTimers() { timers.forEach(t=>{clearTimeout(t);clearInterval(t);}); timers=[]; }
+function addTimer(t){ timers.push(t); return t; }
+
+function getHi(mode){ return parseInt(localStorage.getItem(`popit_hi_${mode}`)||'0'); }
+function setHi(mode,val){ localStorage.setItem(`popit_hi_${mode}`,val); }
+
+function updateHiDisplay() {
+  document.getElementById('hi-cp').textContent = `BEST: ${getHi('cp')}`;
+  document.getElementById('hi-pp').textContent = `BEST: ${getHi('pp')}`;
+  document.getElementById('hi-sp').textContent = `BEST: ${getHi('sp')}`;
+}
+
+function setScore(v){ G.score=v; document.getElementById('score-val').textContent=v; }
+function setInfo(v) { document.getElementById('info-val').textContent=v; }
+function setHiVal(v){ document.getElementById('hi-val').textContent=v; }
+function bumpScore(){ const el=document.getElementById('score-val'); el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); }
+function setStatus(t){ document.getElementById('status-text').textContent=t; }
+function setModeLabel(t){ document.getElementById('mode-label').textContent=t; }
+function setInfoLabel(t){ document.getElementById('info-label').textContent=t; }
+
+let G = { score:0 };
+
+function flashScreen(color){
+  const el=document.getElementById('screen-flash');
+  el.style.background=color; el.style.opacity='1'; el.style.transition='none';
+  requestAnimationFrame(()=>{ el.style.transition='opacity 0.3s ease'; el.style.opacity='0'; });
+}
+
+function showFloat(idx, text, color){
+  const rect = bubbles[idx].el.getBoundingClientRect();
+  const el = document.createElement('div');
+  el.className='float-text'; el.textContent=text; el.style.color=color;
+  el.style.left=(rect.left+rect.width/2-20)+'px';
+  el.style.top=(rect.top+rect.height/4)+'px';
+  document.body.appendChild(el);
+  setTimeout(()=>el.remove(),700);
+}
+
+function popBubble(idx){
+  const {el}=bubbles[idx];
+  el.classList.remove('popped'); void el.offsetWidth; el.classList.add('popped');
+}
+
+function wrongBubble(idx){
+  const {el}=bubbles[idx];
+  el.classList.remove('wrong'); void el.offsetWidth; el.classList.add('wrong');
+}
+
+let timerBarInterval = null;
+let timerBarStart = 0, timerBarDur = 0;
+
+function startTimerBar(duration){
+  clearInterval(timerBarInterval);
+  timerBarStart = Date.now();
+  timerBarDur = duration;
+  const bar = document.getElementById('timer-bar');
+  bar.style.width='100%';
+  bar.style.background='linear-gradient(90deg, #44ffcc, #88aaff)';
+  timerBarInterval = setInterval(()=>{
+    const pct = Math.max(0, 1-(Date.now()-timerBarStart)/timerBarDur);
+    bar.style.width=(pct*100)+'%';
+    if(pct<0.25) bar.style.background='linear-gradient(90deg, #ff4466, #ff8844)';
+    else if(pct<0.5) bar.style.background='linear-gradient(90deg, #ffcc00, #ff8844)';
+    else bar.style.background='linear-gradient(90deg, #44ffcc, #88aaff)';
+    if(pct<=0) clearInterval(timerBarInterval);
+  },50);
+}
+
+function stopTimerBar(){ clearInterval(timerBarInterval); document.getElementById('timer-bar').style.width='100%'; }
+
+const DIAMOND = [1,4,5,8];
+const WINGS   = [0,2,3,6,7,9];
+
+function playVictoryAnimation(type, color, onDone) {
+  resetAllBubbles();
+  if(type === 'level'){
+    let rep = 0;
+    const REPS = 3, STEP = 200;
+    const pulse = () => {
+      if(rep >= REPS){ resetAllBubbles(); addTimer(setTimeout(onDone, 100)); return; }
+      DIAMOND.forEach(i=>setBubbleColor(i, color, true));
+      WINGS.forEach(i=>setBubbleColor(i, null, false));
+      addTimer(setTimeout(()=>{
+        WINGS.forEach(i=>setBubbleColor(i, color, true));
+        DIAMOND.forEach(i=>setBubbleColor(i, null, false));
+        addTimer(setTimeout(()=>{ rep++; pulse(); }, STEP));
+      }, STEP));
+    };
+    SFX.win();
+    pulse();
+  } else {
+    const MILESTONE_COLORS = CP_COLORS;
+    let flashes = 0;
+    const MAX_FLASHES = 12;
+    SFX.win();
+    addTimer(setTimeout(()=>SFX.win(), 400));
+    const flashRandom = () => {
+      if(flashes >= MAX_FLASHES){ resetAllBubbles(); addTimer(setTimeout(onDone, 150)); return; }
+      [0,1,2,3,4,5,6,7,8,9].forEach(idx=>{
+        const c = MILESTONE_COLORS[Math.floor(Math.random()*MILESTONE_COLORS.length)];
+        setBubbleColor(idx, c, true);
+      });
+      flashes++;
+      addTimer(setTimeout(flashRandom, 160));
+    };
+    flashRandom();
+  }
+}
+
+function shuffle(arr){ const a=[...arr]; for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; }
+
+const CP = {
+  level: 1, stage: 1, score: 0,
+  colors: [], targetColor: null, levelColor: null,
+  pattern: [], remaining: [], allColors: [],
+  stageTimer: null,
+
+  getTimer(level, numCorrect) {
+    const bases = [5500,4800,4200,3700,3000,2500,2100,1800,1500,1300];
+    const idx = Math.min(9, level-1);
+    return bases[idx] + numCorrect * 80;
+  },
+
+  start() {
+    currentMode = 'cp';
+    setModeLabel('Color Pop');
+    setInfoLabel('Level');
+    setHiVal(getHi('cp'));
+    this.level = 1; this.stage = 1; this.score = 0;
+    this.levelColor = null;
+    this.colors = shuffle([...CP_COLORS]).slice(0,4);
+    setScore(0); setInfo('1'); setStatus('');
+    SFX.start();
+    addTimer(setTimeout(()=>this.beginStage(), 400));
+  },
+
+  beginStage() {
+    resetAllBubbles();
+    clearAllTimers();
+
+    if(this.stage === 1){
+      this.levelColor = this.colors[Math.floor(Math.random()*this.colors.length)];
+    }
+    this.targetColor = this.levelColor;
+
+    const numCorrect = 3 + Math.floor(Math.random()*4);
+    const indices = shuffle([0,1,2,3,4,5,6,7,8,9]);
+    this.pattern = indices.slice(0, numCorrect);
+    this.remaining = [...this.pattern];
+    this.poppedIndices = [];
+
+    this.allColors = [];
+    for(let i=0;i<10;i++){
+      if(this.pattern.includes(i)){
+        this.allColors[i] = this.targetColor;
+      } else {
+        const others = this.colors.filter(c=>c!==this.targetColor);
+        this.allColors[i] = others[Math.floor(Math.random()*others.length)];
+      }
+    }
+
+    const digit = this.level % 10;
+    const indicatorIdx = DIGIT_MAP[digit];
+    setBubbleColor(indicatorIdx, this.targetColor, true);
+    setStatus(`Level ${this.level} — pop ${colorName(this.targetColor)}!`);
+    setInfo(this.level);
+    SFX.level();
+
+    addTimer(setTimeout(()=>{
+      resetAllBubbles();
+      for(let i=0;i<10;i++) setBubbleColor(i, this.allColors[i], true);
+
+      const dur = this.getTimer(this.level, numCorrect);
+      startTimerBar(dur);
+
+      this.stageTimer = addTimer(setTimeout(()=>{
+        this.fail('Time\'s up!');
+      }, dur));
+    }, 900));
+  },
+
+  onTap(idx) {
+    if(this.poppedIndices && this.poppedIndices.includes(idx)) return;
+
+    if(!this.remaining.includes(idx)){
+      wrongBubble(idx);
+      SFX.wrong();
+      flashScreen('rgba(255,50,50,0.25)');
+      showFloat(idx,'✕','#ff4466');
+      this.fail('Wrong color!');
+      return;
+    }
+    popBubble(idx);
+    SFX.pop();
+    setBubbleColor(idx, '#0d0520', true);
+    this.poppedIndices.push(idx);
+    this.remaining = this.remaining.filter(i=>i!==idx);
+    this.score++;
+    setScore(this.score);
+    bumpScore();
+    showFloat(idx,'+1','#44ffcc');
+
+    if(this.remaining.length === 0){
+      stopTimerBar();
+      clearAllTimers();
+      SFX.good();
+
+      this.stage++;
+      const wasLevelClear = this.stage > 3;
+      if(wasLevelClear){
+        this.stage = 1;
+        this.level++;
+        if(this.level > 20){
+          playVictoryAnimation('milestone', this.targetColor, ()=>this.win());
+          return;
+        }
+        if((this.level - 1) === 10){
+          playVictoryAnimation('milestone', this.targetColor, ()=>{
+            setStatus(`Level ${this.level}!`);
+            addTimer(setTimeout(()=>this.beginStage(), 400));
+          });
+        } else {
+          playVictoryAnimation('level', this.targetColor, ()=>{
+            setStatus(`Level ${this.level}!`);
+            addTimer(setTimeout(()=>this.beginStage(), 400));
+          });
+        }
+      } else {
+        flashScreen('rgba(68,255,204,0.15)');
+        setStatus(`Clear! Stage ${this.stage}...`);
+        addTimer(setTimeout(()=>this.beginStage(), 600));
+      }
+    }
+  },
+
+  fail(msg) {
+    stopTimerBar();
+    clearAllTimers();
+    SFX.over();
+    setStatus(msg);
+    addTimer(setTimeout(()=>endGame('cp', this.score, `Level ${this.level} · Stage ${this.stage}`), 600));
+  },
+
+  win() {
+    stopTimerBar();
+    SFX.win();
+    flashScreen('rgba(68,255,204,0.3)');
+    addTimer(setTimeout(()=>endGame('cp', this.score, 'All 20 levels cleared! 🏆', true), 800));
+  }
+};
+
+function colorName(hex){
+  const map = {
+    '#ff4466':'Red','#ff8c00':'Orange','#ffd600':'Yellow','#22dd66':'Green',
+    '#00ddff':'Cyan','#4488ff':'Blue','#aa44ff':'Purple','#ff44cc':'Pink'
+  };
+  return map[hex] || 'that color';
+}
+
+const PP = {
+  score: 0, timeLeft: 30000,
+  colors: [], popped: [], selected: null,
+  gameTimer: null, pairColors: new Set(),
+
+  start() {
+    currentMode = 'pp';
+    setModeLabel('Pop It Pairs');
+    setInfoLabel('Time');
+    setHiVal(getHi('pp'));
+    this.score = 0; this.timeLeft = 30000;
+    this.gameTimer = null; this.selected = null;
+    this.popped = []; this.pairColors = new Set();
+    setScore(0); setInfo('30'); setStatus('Match the pairs!');
+    SFX.start();
+    addTimer(setTimeout(()=>this.newBoard(), 300));
+  },
+
+  newBoard() {
+    resetAllBubbles();
+    this.popped = []; this.selected = null;
+
+    const numPairs = 2 + Math.floor(Math.random()*3);
+    const numStrays = 10 - numPairs*2;
+    const allCols = shuffle([...PAIR_COLORS]);
+    const pairColors = allCols.slice(0, numPairs);
+    const strayCols = allCols.slice(numPairs, numPairs + numStrays);
+    const pairSlots = [];
+    pairColors.forEach(c => pairSlots.push(c,c));
+    const allSlots = shuffle([...pairSlots, ...strayCols]);
+    this.colors = allSlots;
+    this.pairColors = new Set(pairColors);
+
+    for(let i=0;i<10;i++) setBubbleColor(i, this.colors[i], true);
+
+    if(!this.gameTimer){
+      this._barStart = Date.now();
+      startTimerBar(30000);
+      this.gameTimer = addTimer(setInterval(()=>{
+        this.timeLeft -= 100;
+        const secs = Math.ceil(this.timeLeft/1000);
+        setInfo(Math.max(0,secs));
+        if(this.timeLeft<=0){
+          clearInterval(this.gameTimer); this.gameTimer=null;
+          this.end();
+        }
+      },100));
+    }
+  },
+
+  onTap(idx) {
+    if(this.popped.includes(idx)) return;
+    const isStray = !this.pairColors.has(this.colors[idx]);
+
+    if(this.selected === null){
+      if(isStray){
+        wrongBubble(idx);
+        SFX.wrong();
+        flashScreen('rgba(255,50,50,0.2)');
+        showFloat(idx,'stray!','#ff4466');
+        clearInterval(this.gameTimer); this.gameTimer=null;
+        stopTimerBar();
+        addTimer(setTimeout(()=>this.end(),500));
+        return;
+      }
+      this.selected = idx;
+      const {inner}=bubbles[idx];
+      inner.style.boxShadow = `0 0 0 4px white, 0 0 20px ${this.colors[idx]}`;
+    } else {
+      const first = this.selected;
+      this.selected = null;
+      setBubbleColor(first, this.colors[first], true);
+
+      if(first === idx){ return; }
+
+      if(this.colors[first] === this.colors[idx] && this.pairColors.has(this.colors[idx])){
+        popBubble(first); popBubble(idx);
+        SFX.pop();
+        setBubbleColor(first,'#0d0520',true);
+        setBubbleColor(idx,'#0d0520',true);
+        this.popped.push(first,idx);
+        this.score += 2;
+        setScore(this.score); bumpScore();
+        showFloat(first,'+1','#44ffcc');
+        showFloat(idx,'+1','#44ffcc');
+        flashScreen('rgba(68,255,204,0.1)');
+
+        const allPairsPopped = [...this.pairColors].every(c => {
+          const indices = this.colors.map((col,i)=>col===c?i:-1).filter(i=>i>=0);
+          return indices.every(i=>this.popped.includes(i));
+        });
+        if(allPairsPopped){
+          addTimer(setTimeout(()=>this.newBoard(), 400));
+        }
+      } else {
+        wrongBubble(first); wrongBubble(idx);
+        SFX.wrong();
+        flashScreen('rgba(255,50,50,0.2)');
+        showFloat(idx,'✕','#ff4466');
+        clearInterval(this.gameTimer); this.gameTimer=null;
+        stopTimerBar();
+        addTimer(setTimeout(()=>this.end(),500));
+      }
+    }
+  },
+
+  end() {
+    stopTimerBar();
+    clearAllTimers();
+    SFX.over();
+    endGame('pp', this.score, `${this.score} bubbles matched`);
+  }
+};
+
+const SP = {
+  score: 0, opportunity: 0, round: 0, roundPops: 0,
+  bgColor: null, moveColor: null, currentIdx: null,
+  stopped: false, stopTimer: null, moveTimer: null,
+  poppedThisRound: [], bouncesSinceStop: 0,
+  lastStoppedIdx: -1,
+  MIN_BOUNCES: 5,
+
+  getStopWindow(round){ return Math.max(340, 1080 - round * 50); },
+  getMoveInterval(round){ return Math.max(144, 360 - round * 14); },
+
+  start(){
+    currentMode = 'sp';
+    setModeLabel('Stop & Pop');
+    setInfoLabel('Opps');
+    setHiVal(getHi('sp'));
+    this.score=0; this.opportunity=0; this.round=0; this.roundPops=0;
+    this.poppedThisRound=[]; this.lastStoppedIdx=-1;
+    setScore(0); setInfo('0/50'); setStatus('Pop when it stops!');
+    SFX.start();
+    addTimer(setTimeout(()=>this.newRound(),400));
+  },
+
+  newRound(){
+    resetAllBubbles();
+    this.poppedThisRound=[];
+    this.roundPops=0;
+    this.bouncesSinceStop=0;
+    this.lastStoppedIdx=-1;
+    const pair = shuffle([...PAIR_COLORS]).slice(0,2);
+    this.bgColor = pair[0];
+    this.moveColor = pair[1];
+    for(let i=0;i<10;i++) setBubbleColor(i, this.bgColor, true);
+    addTimer(setTimeout(()=>this.startMoving(),400));
+  },
+
+  startMoving(){
+    if(currentMode!=='sp') return;
+    const available = [0,1,2,3,4,5,6,7,8,9].filter(i=>!this.poppedThisRound.includes(i));
+    this.currentIdx = available[Math.floor(Math.random()*available.length)];
+    this.stopped = false;
+    this.bouncesSinceStop = 0;
+    setBubbleColor(this.currentIdx, this.moveColor, true);
+    bubbles[this.currentIdx].el.classList.add('moving');
+    this.scheduleMoveOrStop();
+  },
+
+  scheduleMoveOrStop(){
+    if(currentMode!=='sp') return;
+    clearTimeout(this.moveTimer);
+    clearTimeout(this.stopTimer);
+
+    const moveInterval = this.getMoveInterval(this.round);
+    const canStop = this.bouncesSinceStop >= this.MIN_BOUNCES;
+    const willStop = canStop && Math.random() < 0.28;
+
+    this.moveTimer = addTimer(setTimeout(()=>{
+      if(willStop){ this.doStop(); }
+      else { this.doMove(); }
+    }, moveInterval));
+  },
+
+  doMove(){
+    if(currentMode!=='sp') return;
+    if(this.currentIdx!==null && !this.poppedThisRound.includes(this.currentIdx)){
+      setBubbleColor(this.currentIdx, this.bgColor, true);
+      bubbles[this.currentIdx].el.classList.remove('moving','stopped');
+    }
+    const adj = ADJACENT2[this.currentIdx].filter(i => !this.poppedThisRound.includes(i));
+    if(adj.length===0){ this.doStop(); return; }
+    this.currentIdx = adj[Math.floor(Math.random()*adj.length)];
+    this.stopped = false;
+    this.bouncesSinceStop++;
+    setBubbleColor(this.currentIdx, this.moveColor, true);
+    bubbles[this.currentIdx].el.classList.add('moving');
+    bubbles[this.currentIdx].el.classList.remove('stopped');
+    this.scheduleMoveOrStop();
+  },
+
+  doStop(){
+    if(currentMode!=='sp') return;
+    this.stopped = true;
+    this.bouncesSinceStop = 0;
+    bubbles[this.currentIdx].el.classList.remove('moving');
+    bubbles[this.currentIdx].el.classList.add('stopped');
+    SFX.stop();
+
+    const window_ = this.getStopWindow(this.round);
+    this.stopTimer = addTimer(setTimeout(()=>{
+      if(this.stopped){
+        this.lastStoppedIdx = this.currentIdx;
+        this.opportunity++;
+        setInfo(`${this.opportunity}/50`);
+        this.stopped=false;
+        bubbles[this.currentIdx].el.classList.remove('stopped');
+        showFloat(this.currentIdx,'miss','rgba(255,255,255,0.5)');
+        if(this.opportunity>=50){ this.end(); return; }
+        this.doMove();
+      }
+    }, window_));
+  },
+
+  onTap(idx){
+    if(currentMode!=='sp') return;
+
+    if(idx===this.currentIdx && this.stopped){
+      clearTimeout(this.stopTimer);
+      this.stopped=false;
+      this.lastStoppedIdx=-1;
+      popBubble(idx);
+      SFX.pop();
+      this.score++;
+      this.opportunity++;
+      setScore(this.score); bumpScore();
+      setInfo(`${this.opportunity}/50`);
+      showFloat(idx,'+1','#44ffcc');
+      flashScreen('rgba(68,255,204,0.1)');
+      this.poppedThisRound.push(idx);
+      setBubbleColor(idx, '#0d0520', true);
+      bubbles[idx].el.classList.remove('stopped','moving');
+
+      if(this.opportunity>=50){ this.end(); return; }
+
+      if(this.poppedThisRound.length>=3){
+        this.round++;
+        addTimer(setTimeout(()=>this.newRound(),500));
+      } else {
+        this.doMove();
+      }
+    } else if(idx===this.currentIdx && !this.stopped){
+      // Tapped current bubble while it's moving — costs an opportunity and dims it
+      clearTimeout(this.stopTimer);
+      wrongBubble(idx);
+      SFX.wrong();
+      this.opportunity++;
+      setInfo(`${this.opportunity}/50`);
+      showFloat(idx,'moving!','#ff4466');
+      this.poppedThisRound.push(idx);
+      setBubbleColor(idx, '#0d0520', true);
+      bubbles[idx].el.classList.remove('moving','stopped');
+      if(this.opportunity>=50){ this.end(); return; }
+      if(this.poppedThisRound.length>=3){
+        this.round++;
+        clearTimeout(this.moveTimer); clearTimeout(this.stopTimer);
+        addTimer(setTimeout(()=>this.newRound(),500));
+      } else {
+        this.doMove();
+      }
+    } else {
+      // Wrong bubble entirely
+      if(idx === this.lastStoppedIdx){
+        // Tapped where it just stopped — window already expired, opportunity already counted
+        wrongBubble(idx);
+        showFloat(idx,'too late','rgba(255,255,255,0.45)');
+      } else {
+        // Genuinely wrong bubble — costs an opportunity and dims it
+        wrongBubble(idx);
+        SFX.wrong();
+        this.opportunity++;
+        setInfo(`${this.opportunity}/50`);
+        showFloat(idx,'✕','#ff4466');
+        this.poppedThisRound.push(idx);
+        setBubbleColor(idx, '#0d0520', true);
+        if(this.opportunity>=50){ this.end(); return; }
+        if(this.poppedThisRound.length>=3){
+          this.round++;
+          clearTimeout(this.moveTimer); clearTimeout(this.stopTimer);
+          addTimer(setTimeout(()=>this.newRound(),500));
+        }
+      }
+    }
+  },
+
+  end(){
+    clearAllTimers();
+    stopTimerBar();
+    const pct = Math.round(this.score/50*100);
+    SFX.win();
+    endGame('sp', this.score, `${this.score}/50 scored (${pct}% accuracy)`);
+  }
+};
+
+function onBubbleTap(idx){
+  if(currentMode==='cp') CP.onTap(idx);
+  else if(currentMode==='pp') PP.onTap(idx);
+  else if(currentMode==='sp') SP.onTap(idx);
+}
+
+function endGame(mode, score, detail, win=false){
+  currentMode = null;
+  clearAllTimers();
+  stopTimerBar();
+  resetAllBubbles();
+
+  const hi = getHi(mode);
+  const isNew = score > hi;
+  if(isNew) setHi(mode, score);
+
+  document.getElementById('go-title').textContent = win ? '🏆 Complete!' : 'Game Over!';
+  document.getElementById('final-score-el').textContent = score;
+  document.getElementById('final-rank-el').textContent = getRank(mode, score);
+  document.getElementById('final-detail-el').textContent = detail;
+
+  const nr = document.getElementById('new-record-el');
+  if(isNew && score>0) nr.classList.remove('hidden'); else nr.classList.add('hidden');
+
+  document.getElementById('gameover-screen').classList.remove('hidden');
+  updateHiDisplay();
+
+  document.getElementById('restart-btn').dataset.mode = mode;
+}
+
+function getRank(mode, score){
+  if(mode==='cp'){
+    if(score>=55) return '🏆 Perfect run!';
+    if(score>=40) return '⭐ Excellent!';
+    if(score>=25) return '😊 Good job!';
+    if(score>=15) return '🙂 Not bad!';
+    return '😬 Keep trying!';
+  }
+  if(mode==='pp'){
+    if(score>=20) return '⚡ Lightning fast!';
+    if(score>=14) return '⭐ Excellent!';
+    if(score>=8)  return '😊 Good job!';
+    if(score>=4)  return '🙂 Not bad!';
+    return '😬 Keep trying!';
+  }
+  if(mode==='sp'){
+    if(score>=45) return '🎯 Nearly perfect!';
+    if(score>=35) return '⭐ Excellent!';
+    if(score>=25) return '😊 Good job!';
+    if(score>=15) return '🙂 Not bad!';
+    return '😔 Give up?';
+  }
+  return '';
+}
+
+buildBubbles();
+updateHiDisplay();
+
+let soundOn = true;
+function updateVolBtns(){
+  const label = soundOn ? '🔊 Sound: ON' : '🔇 Sound: OFF';
+  document.getElementById('vol-btn').textContent = label;
+  document.getElementById('title-vol-btn').textContent = label;
+  VOL = soundOn ? 0.5 : 0;
+}
+function toggleSound(){
+  soundOn = !soundOn;
+  updateVolBtns();
+}
+document.getElementById('vol-btn').addEventListener('pointerdown', toggleSound);
+document.getElementById('title-vol-btn').addEventListener('pointerdown', toggleSound);
+
+document.getElementById('card-cp').addEventListener('pointerdown',()=>{
+  document.getElementById('title-screen').classList.add('hidden');
+  CP.start();
+});
+document.getElementById('card-pp').addEventListener('pointerdown',()=>{
+  document.getElementById('title-screen').classList.add('hidden');
+  PP.start();
+});
+document.getElementById('card-sp').addEventListener('pointerdown',()=>{
+  document.getElementById('title-screen').classList.add('hidden');
+  SP.start();
+});
+
+document.getElementById('restart-btn').addEventListener('pointerdown',()=>{
+  const mode = document.getElementById('restart-btn').dataset.mode;
+  document.getElementById('gameover-screen').classList.add('hidden');
+  clearAllTimers();
+  setTimeout(()=>{
+    if(mode==='cp') CP.start();
+    else if(mode==='pp') PP.start();
+    else if(mode==='sp') SP.start();
+  },150);
+});
+
+document.getElementById('menu-btn').addEventListener('pointerdown',()=>{
+  clearAllTimers(); currentMode=null; stopTimerBar(); resetAllBubbles();
+  document.getElementById('gameover-screen').classList.add('hidden');
+  document.getElementById('title-screen').classList.remove('hidden');
+  setStatus('Choose a mode');
+  setModeLabel('Select a mode');
+  setScore(0); setInfo('—');
+  updateHiDisplay();
+});
+</script>
+</body>
+</html>

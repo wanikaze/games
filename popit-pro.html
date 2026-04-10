@@ -1,0 +1,883 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Pop It! Pro</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;700;800;900&display=swap');
+
+:root {
+  --panel:      rgba(255,255,255,0.18);
+  --panel-b:    rgba(255,255,255,0.32);
+  --text:       #0a2a3a;
+  --dim:        rgba(10,42,58,0.55);
+  --bub-dk:     #1a4a6a;
+  --bub-lt:     #2a6a90;
+  --lit:        #f5c800;
+  --lit-lt:     #ffe060;
+  --lit-glow:   rgba(240,190,0,0.75);
+  --popped-dk:  #0a1a28;
+  --popped-lt:  #0f2235;
+  --pass-arrow: #f5c800;
+  --acc:        #0088cc;
+  --acc2:       #00aaee;
+  --gold:       #cc8800;
+  --warn:       #e03010;
+}
+
+* { box-sizing:border-box; margin:0; padding:0; touch-action:manipulation; -webkit-tap-highlight-color:transparent; user-select:none; }
+
+body {
+  min-height:100vh;
+  background:radial-gradient(ellipse at 45% 15%, #b8e4f8 0%, #7ec8e8 35%, #4aaad0 70%, #2a88b8 100%);
+  display:flex; flex-direction:column; align-items:center;
+  font-family:'Nunito', sans-serif; color:var(--text); overflow:hidden;
+}
+body::before {
+  content:''; position:fixed; inset:0; pointer-events:none;
+  background-image:
+    radial-gradient(2px 2px at 18% 12%, rgba(255,255,255,0.55) 0%, transparent 100%),
+    radial-gradient(2px 2px at 80% 20%, rgba(255,255,255,0.45) 0%, transparent 100%),
+    radial-gradient(1px 1px at 55% 65%, rgba(255,255,255,0.35) 0%, transparent 100%),
+    radial-gradient(2px 2px at 10% 72%, rgba(255,255,255,0.4)  0%, transparent 100%),
+    radial-gradient(1px 1px at 88% 58%, rgba(255,255,255,0.3)  0%, transparent 100%),
+    radial-gradient(2px 2px at 42% 90%, rgba(255,255,255,0.38) 0%, transparent 100%);
+}
+
+#app {
+  width:100%; max-width:420px; min-height:100vh;
+  display:flex; flex-direction:column; align-items:center;
+  position:relative; z-index:1; padding-bottom:12px;
+}
+
+/* ── HEADER ── */
+#header { width:100%; padding:10px 16px 4px; text-align:center; }
+#game-title {
+  font-family:'Fredoka One', cursive;
+  font-size:clamp(26px,8vw,38px);
+  color:#004a70;
+  text-shadow:0 2px 0 rgba(255,255,255,0.5), 0 0 20px rgba(0,100,160,0.3);
+  letter-spacing:1px; line-height:1;
+}
+#mode-label {
+  font-size:10px; font-weight:800; letter-spacing:4px;
+  color:var(--dim); text-transform:uppercase; margin-top:2px;
+}
+
+/* ── HUD ── */
+#hud {
+  width:calc(100% - 24px); margin:6px 12px 4px;
+  background:rgba(255,255,255,0.28); border:1px solid rgba(255,255,255,0.55);
+  border-radius:16px; padding:7px 14px;
+  display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px;
+  box-shadow:0 2px 12px rgba(0,80,140,0.15);
+}
+.hud-block { display:flex; flex-direction:column; align-items:center; gap:1px; }
+.hud-label { font-size:7px; font-weight:800; letter-spacing:2px; color:var(--dim); text-transform:uppercase; }
+.hud-value { font-family:'Fredoka One', cursive; font-size:clamp(18px,5vw,26px); line-height:1; }
+#score-val { color:#004a70; text-shadow:0 1px 0 rgba(255,255,255,0.4); }
+#info-val  { color:var(--gold); text-shadow:0 1px 0 rgba(255,255,255,0.3); }
+#hi-val    { color:rgba(0,60,100,0.5); }
+.hud-value.bump { animation:bump 0.18s ease; }
+@keyframes bump { 0%{transform:scale(1)} 50%{transform:scale(1.3)} 100%{transform:scale(1)} }
+
+/* ── TIMER BAR ── */
+#timer-wrap { width:calc(100% - 24px); margin:2px 12px; height:6px; background:rgba(0,60,100,0.18); border-radius:3px; overflow:hidden; }
+#timer-bar  { height:100%; border-radius:3px; transition:width 0.05s linear; background:linear-gradient(90deg,#0088cc,#44ccff); }
+
+/* ── BOARD ── */
+#board-wrap {
+  flex:1; width:100%; display:flex; align-items:center;
+  justify-content:center; padding:6px 12px;
+}
+#board {
+  width:100%; max-width:360px;
+  background:rgba(255,255,255,0.22);
+  border:2px solid rgba(255,255,255,0.55);
+  border-radius:28px; padding:16px 12px;
+  box-shadow:0 8px 32px rgba(0,80,160,0.22), inset 0 1px 0 rgba(255,255,255,0.6);
+  display:flex; flex-direction:column; gap:10px;
+}
+.bubble-row { display:flex; gap:10px; justify-content:center; }
+
+/* ── BUBBLE ── */
+.bubble {
+  flex:0 0 auto;
+  width:calc((100% - 40px) / 4);
+  max-width:78px; aspect-ratio:1;
+  border-radius:50%; position:relative;
+  cursor:pointer; transition:transform 0.06s ease;
+}
+.row-mid .bubble { width:calc((100% - 50px) / 4); }
+.bubble:active { transform:scale(0.88); }
+
+.bubble-inner {
+  width:100%; height:100%; border-radius:50%;
+  position:relative; overflow:hidden;
+  transition:background 0.08s ease, box-shadow 0.08s ease;
+  background:radial-gradient(circle at 35% 30%, var(--bub-lt), var(--bub-dk));
+  box-shadow:inset 0 2px 6px rgba(0,0,0,0.5), 0 2px 8px rgba(0,60,120,0.35);
+  border:2px solid rgba(255,255,255,0.12);
+}
+.bubble-inner::before {
+  content:''; position:absolute;
+  top:8%; left:15%; width:35%; height:30%;
+  border-radius:50%;
+  background:rgba(255,255,255,0.22);
+  transform:rotate(-30deg);
+  pointer-events:none;
+}
+
+/* Lit — yellow */
+.bubble.lit .bubble-inner {
+  background:radial-gradient(circle at 35% 30%, var(--lit-lt), var(--lit));
+  box-shadow:0 0 0 3px rgba(240,190,0,0.5), 0 0 20px var(--lit-glow), inset 0 2px 6px rgba(255,255,255,0.3);
+  border-color:rgba(255,220,40,0.7);
+}
+
+/* Popped — dark navy */
+.bubble.popped-state .bubble-inner {
+  background:radial-gradient(circle at 35% 30%, var(--popped-lt), var(--popped-dk));
+  box-shadow:inset 0 2px 8px rgba(0,0,0,0.8);
+  border-color:rgba(255,255,255,0.04);
+}
+
+/* Pass arrow — orange */
+.bubble.arrow-lit .bubble-inner {
+  background:radial-gradient(circle at 35% 30%, var(--lit-lt), var(--lit));
+  box-shadow:0 0 0 3px rgba(240,190,0,0.5), 0 0 20px var(--lit-glow), inset 0 2px 6px rgba(255,255,255,0.3);
+  border-color:rgba(255,220,40,0.7);
+}
+
+/* Animations */
+.bubble.popped .bubble-inner { animation:pop-anim 0.18s ease; }
+@keyframes pop-anim {
+  0%{transform:scale(1)} 35%{transform:scale(0.78)} 70%{transform:scale(1.1)} 100%{transform:scale(1)}
+}
+.bubble.wrong .bubble-inner { animation:wrong-shake 0.25s ease; }
+@keyframes wrong-shake {
+  0%{transform:translateX(0)} 20%{transform:translateX(-5px)} 40%{transform:translateX(5px)}
+  60%{transform:translateX(-4px)} 80%{transform:translateX(4px)} 100%{transform:translateX(0)}
+}
+.bubble.flash-success .bubble-inner { animation:flash-s 0.15s ease 3; }
+@keyframes flash-s {
+  0%{filter:brightness(1)} 50%{filter:brightness(1.8)} 100%{filter:brightness(1)}
+}
+
+/* Float text */
+.float-text {
+  position:fixed; font-family:'Fredoka One', cursive; font-size:18px;
+  pointer-events:none; z-index:600; animation:float-up 0.65s ease forwards;
+  text-shadow:0 2px 4px rgba(0,0,0,0.2);
+}
+@keyframes float-up { 0%{opacity:1;transform:translateY(0) scale(1)} 100%{opacity:0;transform:translateY(-44px) scale(1.15)} }
+
+#screen-flash { position:fixed; inset:0; pointer-events:none; z-index:500; opacity:0; }
+
+/* ── BOTTOM ── */
+#bottom { width:calc(100% - 24px); margin:6px 12px 0; text-align:center; min-height:24px; }
+#status-text { font-family:'Fredoka One', cursive; font-size:clamp(12px,3.8vw,16px); color:#004a70; letter-spacing:1px; }
+
+/* ── VOL ── */
+#vol-wrap { width:calc(100% - 24px); margin:6px 12px 0; display:flex; justify-content:center; }
+#vol-btn {
+  font-family:'Fredoka One', cursive; font-size:12px;
+  background:rgba(255,255,255,0.35); border:1px solid rgba(255,255,255,0.6);
+  border-radius:20px; padding:5px 18px; color:#004a70;
+  cursor:pointer;
+}
+
+/* ── SCREENS ── */
+.screen {
+  position:fixed; inset:0; display:flex; flex-direction:column;
+  align-items:center; justify-content:center; gap:12px;
+  z-index:400; padding:20px; text-align:center;
+  background:radial-gradient(ellipse at 50% 30%, #b8e4f8 0%, #5ab8dc 55%, #2a88b8 100%);
+}
+.screen.hidden { display:none; }
+.screen-title {
+  font-family:'Fredoka One', cursive; font-size:clamp(28px,9vw,46px);
+  color:#003a58; text-shadow:0 2px 0 rgba(255,255,255,0.5);
+  line-height:1;
+}
+
+#mode-cards { display:flex; flex-direction:column; gap:8px; width:100%; max-width:320px; }
+.mode-card {
+  background:rgba(255,255,255,0.35); border:1px solid rgba(255,255,255,0.6);
+  border-radius:16px; padding:11px 14px;
+  display:flex; align-items:center; gap:12px;
+  cursor:pointer; transition:all 0.12s ease;
+  box-shadow:0 2px 8px rgba(0,80,140,0.12);
+}
+.mode-card:active { transform:scale(0.97); background:rgba(255,255,255,0.5); }
+.mode-icon { font-size:26px; flex-shrink:0; }
+.mode-info { text-align:left; flex:1; }
+.mode-name { font-family:'Fredoka One', cursive; font-size:15px; color:#003a58; }
+.mode-desc { font-size:10px; font-weight:700; color:var(--dim); margin-top:1px; line-height:1.4; }
+.mode-hi   { font-size:9px; font-weight:800; letter-spacing:1px; color:var(--gold); margin-top:2px; }
+.mode-arrow { font-size:18px; color:var(--dim); }
+
+#title-vol-btn {
+  font-family:'Fredoka One', cursive; font-size:12px;
+  background:rgba(255,255,255,0.35); border:1px solid rgba(255,255,255,0.6);
+  border-radius:20px; padding:5px 18px; color:#004a70;
+  cursor:pointer;
+}
+
+.result-card {
+  background:rgba(255,255,255,0.35); border:1px solid rgba(255,255,255,0.6);
+  border-radius:20px; padding:14px 22px; width:100%; max-width:300px;
+  box-shadow:0 4px 16px rgba(0,80,140,0.15);
+}
+.result-score { font-family:'Fredoka One', cursive; font-size:clamp(52px,15vw,72px); line-height:1; color:#003a58; }
+.result-rank  { font-family:'Fredoka One', cursive; font-size:clamp(18px,5vw,24px); margin-top:4px; color:#005a80; }
+.result-detail { font-size:11px; font-weight:700; color:var(--dim); margin-top:6px; line-height:1.6; }
+.new-record { font-family:'Fredoka One', cursive; font-size:14px; color:var(--gold); animation:blink-r 0.6s infinite; }
+@keyframes blink-r { 0%,100%{opacity:1} 50%{opacity:0.15} }
+
+.btn {
+  font-family:'Fredoka One', cursive; font-size:16px; padding:11px 28px;
+  border-radius:50px; border:none; cursor:pointer;
+  transition:transform 0.08s, box-shadow 0.08s;
+  box-shadow:0 4px 0 rgba(0,0,0,0.15);
+}
+.btn:active { transform:translateY(3px); box-shadow:0 1px 0 rgba(0,0,0,0.15); }
+.btn-blue { background:linear-gradient(180deg,#44ccff,#0088cc); color:#fff; text-shadow:0 1px 0 rgba(0,0,0,0.2); }
+.btn-back { background:rgba(255,255,255,0.4); color:#004a70; border:1px solid rgba(255,255,255,0.6); box-shadow:none; font-size:14px; padding:9px 22px; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="header">
+    <div id="game-title">Pop It! Pro</div>
+    <div id="mode-label">Select a game</div>
+  </div>
+
+  <div id="hud">
+    <div class="hud-block"><div class="hud-label">Score</div><div class="hud-value" id="score-val">0</div></div>
+    <div class="hud-block"><div class="hud-label" id="info-label">Level</div><div class="hud-value" id="info-val">—</div></div>
+    <div class="hud-block"><div class="hud-label">Best</div><div class="hud-value" id="hi-val">0</div></div>
+  </div>
+
+  <div id="timer-wrap"><div id="timer-bar" style="width:100%"></div></div>
+
+  <div id="board-wrap">
+    <div id="board">
+      <div class="bubble-row row-top"></div>
+      <div class="bubble-row row-mid"></div>
+      <div class="bubble-row row-bot"></div>
+    </div>
+  </div>
+
+  <div id="bottom"><div id="status-text"></div></div>
+  <div id="vol-wrap"><button id="vol-btn">🔊 Sound: ON</button></div>
+</div>
+
+<div id="screen-flash"></div>
+
+<!-- Title -->
+<div class="screen" id="title-screen">
+  <div class="screen-title">Pop It! Pro</div>
+  <div id="mode-cards">
+    <div class="mode-card" id="card-pro">
+      <div class="mode-icon">⚡</div>
+      <div class="mode-info">
+        <div class="mode-name">Pro Mode</div>
+        <div class="mode-desc">20 levels · 5 patterns each · beat the clock</div>
+        <div class="mode-hi" id="hi-pro">Start from Level 1</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:5px;flex-shrink:0">
+        <button class="pro-start-btn" id="pro-continue" style="font-family:'Fredoka One',cursive;font-size:11px;background:rgba(0,100,160,0.25);border:1px solid rgba(255,255,255,0.4);border-radius:12px;padding:4px 10px;color:#003a58;cursor:pointer;white-space:nowrap">Continue</button>
+        <button class="pro-start-btn" id="pro-from1" style="font-family:'Fredoka One',cursive;font-size:11px;background:rgba(255,255,255,0.25);border:1px solid rgba(255,255,255,0.4);border-radius:12px;padding:4px 10px;color:#003a58;cursor:pointer;white-space:nowrap">Lv 1</button>
+      </div>
+    </div>
+    <div class="mode-card" id="card-pp">
+      <div class="mode-icon">🤝</div>
+      <div class="mode-info">
+        <div class="mode-name">Pop &amp; Pass</div>
+        <div class="mode-desc">Multiplayer · pass after each clear · don't be the one who fails</div>
+        <div class="mode-hi" id="hi-pp">BEST: 0 rounds</div>
+      </div>
+      <div class="mode-arrow">›</div>
+    </div>
+    <div class="mode-card" id="card-blitz">
+      <div class="mode-icon">🌟</div>
+      <div class="mode-info">
+        <div class="mode-name">Poppin' Blitz</div>
+        <div class="mode-desc">18 seconds · pop lit bubbles to reveal more</div>
+        <div class="mode-hi" id="hi-blitz">BEST: 0 bubbles</div>
+      </div>
+      <div class="mode-arrow">›</div>
+    </div>
+  </div>
+  <button id="title-vol-btn">🔊 Sound: ON</button>
+</div>
+
+<!-- Game over -->
+<div class="screen hidden" id="gameover-screen">
+  <div class="screen-title" id="go-title">Game Over!</div>
+  <div class="new-record hidden" id="new-record-el">★ NEW RECORD ★</div>
+  <div class="result-card">
+    <div class="result-score" id="final-score-el">0</div>
+    <div class="result-rank"  id="final-rank-el"></div>
+    <div class="result-detail" id="final-detail-el"></div>
+  </div>
+  <button class="btn btn-blue" id="restart-btn">Play Again</button>
+  <button class="btn btn-back" id="menu-btn">← Menu</button>
+</div>
+
+<script>
+// ── AUDIO ────────────────────────────────────────────────────────────────────
+let actx=null, VOL=0.45;
+function getCtx(){ if(!actx) actx=new(window.AudioContext||window.webkitAudioContext)(); if(actx.state==='suspended') actx.resume(); return actx; }
+function tone(f,type,dur,vol){ try{ const ac=getCtx(),o=ac.createOscillator(),g=ac.createGain(); o.connect(g);g.connect(ac.destination);o.type=type;o.frequency.value=f; const v=vol*VOL; g.gain.setValueAtTime(v,ac.currentTime); g.gain.exponentialRampToValueAtTime(0.001,ac.currentTime+dur); o.start();o.stop(ac.currentTime+dur); }catch(e){} }
+function sweep(f1,f2,type,dur,vol){ try{ const ac=getCtx(),o=ac.createOscillator(),g=ac.createGain(); o.connect(g);g.connect(ac.destination);o.type=type; o.frequency.setValueAtTime(f1,ac.currentTime); o.frequency.exponentialRampToValueAtTime(f2,ac.currentTime+dur); const v=vol*VOL; g.gain.setValueAtTime(v,ac.currentTime); g.gain.exponentialRampToValueAtTime(0.001,ac.currentTime+dur); o.start();o.stop(ac.currentTime+dur); }catch(e){} }
+function noise(dur,vol){ try{ const ac=getCtx(),buf=ac.createBuffer(1,ac.sampleRate*dur,ac.sampleRate),d=buf.getChannelData(0); for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1; const src=ac.createBufferSource(),g=ac.createGain(); src.buffer=buf;src.connect(g);g.connect(ac.destination); const v=vol*VOL; g.gain.setValueAtTime(v,ac.currentTime); g.gain.exponentialRampToValueAtTime(0.001,ac.currentTime+dur); src.start();src.stop(ac.currentTime+dur); }catch(e){} }
+
+const SFX={
+  pop()   { sweep(380,240,'sine',0.09,0.45); noise(0.035,0.1); },
+  wrong() { sweep(140,70,'sawtooth',0.28,0.45); noise(0.1,0.18); },
+  light() { sweep(300,420,'sine',0.07,0.12); },
+  clear() { [440,554,660,880].forEach((f,i)=>setTimeout(()=>tone(f,'square',0.12,0.22),i*55)); },
+  pass()  { [660,880,1100].forEach((f,i)=>setTimeout(()=>tone(f,'sine',0.08,0.2),i*60)); },
+  level() { [440,554,659,880].forEach((f,i)=>setTimeout(()=>tone(f,'square',0.1,0.2),i*70)); },
+  win()   { [523,659,784,1047,1319].forEach((f,i)=>setTimeout(()=>tone(f,'square',0.14,0.25),i*80)); },
+  over()  { sweep(220,80,'sawtooth',0.55,0.42); setTimeout(()=>sweep(120,50,'sawtooth',0.6,0.3),400); },
+  start() { [330,440,554,660].forEach((f,i)=>setTimeout(()=>tone(f,'square',0.08,0.18),i*75)); },
+  tick()  { tone(1400,'sine',0.03,0.12); },
+};
+
+// ── BUBBLES ──────────────────────────────────────────────────────────────────
+// Layout: row0=[0,1,2]  row1=[3,4,5,6]  row2=[7,8,9]
+let bubbles=[];
+
+function buildBubbles(){
+  const rows=document.querySelectorAll('.bubble-row');
+  bubbles=[];
+  rows.forEach(r=>r.innerHTML='');
+  [3,4,3].forEach((n,ri)=>{
+    const row=rows[ri];
+    for(let i=0;i<n;i++){
+      const el=document.createElement('div'); el.className='bubble';
+      const inner=document.createElement('div'); inner.className='bubble-inner';
+      el.appendChild(inner); row.appendChild(el);
+      const idx=bubbles.length;
+      el.dataset.idx=idx;
+      bubbles.push({el,inner,idx});
+      el.addEventListener('pointerdown',e=>{ e.preventDefault(); onBubbleTap(idx); });
+    }
+  });
+}
+
+function setBubble(idx,state){
+  const {el}=bubbles[idx];
+  el.classList.remove('lit','popped-state','arrow-lit');
+  if(state==='lit')    el.classList.add('lit');
+  if(state==='popped') el.classList.add('popped-state');
+  if(state==='arrow')  el.classList.add('arrow-lit');
+}
+
+function resetAllBubbles(){
+  bubbles.forEach((_,i)=>{
+    setBubble(i,'unlit');
+    bubbles[i].el.classList.remove('popped','wrong','flash-success');
+  });
+}
+
+function animPop(idx){ const el=bubbles[idx].el; el.classList.remove('popped'); void el.offsetWidth; el.classList.add('popped'); }
+function animWrong(idx){ const el=bubbles[idx].el; el.classList.remove('wrong'); void el.offsetWidth; el.classList.add('wrong'); }
+function animFlashSuccess(){
+  bubbles.forEach((_,i)=>{
+    const el=bubbles[i].el; el.classList.remove('flash-success'); void el.offsetWidth;
+    if(el.classList.contains('lit')||el.classList.contains('popped-state')) el.classList.add('flash-success');
+  });
+}
+
+// ── SHARED ───────────────────────────────────────────────────────────────────
+let currentMode=null;
+let timers=[];
+function clearAllTimers(){ timers.forEach(t=>{clearTimeout(t);clearInterval(t);}); timers=[]; }
+function addTimer(t){ timers.push(t); return t; }
+
+function getHi(k){ return parseInt(localStorage.getItem('pip_hi_'+k)||'0'); }
+function setHi(k,v){ localStorage.setItem('pip_hi_'+k,v); }
+
+let G={score:0};
+function setScore(v){ G.score=v; document.getElementById('score-val').textContent=v; }
+function setInfo(v) { document.getElementById('info-val').textContent=v; }
+function setHiVal(v){ document.getElementById('hi-val').textContent=v; }
+function bumpScore(){ const el=document.getElementById('score-val'); el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); }
+function setStatus(t){ document.getElementById('status-text').textContent=t; }
+function setModeLabel(t){ document.getElementById('mode-label').textContent=t; }
+function setInfoLabel(t){ document.getElementById('info-label').textContent=t; }
+
+function flashScreen(color){
+  const el=document.getElementById('screen-flash');
+  el.style.background=color; el.style.opacity='1'; el.style.transition='none';
+  requestAnimationFrame(()=>{ el.style.transition='opacity 0.3s ease'; el.style.opacity='0'; });
+}
+function showFloat(idx,text,color){
+  const rect=bubbles[idx].el.getBoundingClientRect();
+  const el=document.createElement('div'); el.className='float-text'; el.textContent=text; el.style.color=color;
+  el.style.left=(rect.left+rect.width/2-20)+'px'; el.style.top=(rect.top+rect.height/4)+'px';
+  document.body.appendChild(el); setTimeout(()=>el.remove(),700);
+}
+
+// ── TIMER BAR ────────────────────────────────────────────────────────────────
+let timerBarIv=null;
+function startTimerBar(duration){
+  clearInterval(timerBarIv);
+  const start=Date.now(), bar=document.getElementById('timer-bar');
+  bar.style.width='100%';
+  bar.style.background='linear-gradient(90deg,#0088cc,#44ccff)';
+  timerBarIv=setInterval(()=>{
+    const pct=Math.max(0,1-(Date.now()-start)/duration);
+    bar.style.width=(pct*100)+'%';
+    if(pct<0.25)     bar.style.background='linear-gradient(90deg,#cc2200,#ff5522)';
+    else if(pct<0.5) bar.style.background='linear-gradient(90deg,#cc8800,#ffcc00)';
+    else             bar.style.background='linear-gradient(90deg,#0088cc,#44ccff)';
+    if(pct<=0) clearInterval(timerBarIv);
+  },50);
+}
+function stopTimerBar(){ clearInterval(timerBarIv); const bar=document.getElementById('timer-bar'); bar.style.width='100%'; bar.style.background='linear-gradient(90deg,#0088cc,#44ccff)'; }
+
+// ── PATTERN GENERATION ───────────────────────────────────────────────────────
+function shuffle(arr){ const a=[...arr]; for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]; } return a; }
+
+function patternSizeForLevel(level){
+  const l=((level-1)%10)+1;
+  return 3+Math.round((l-1)/9*5); // level1→3, level10→8
+}
+function generatePattern(level){
+  return shuffle([0,1,2,3,4,5,6,7,8,9]).slice(0,patternSizeForLevel(level));
+}
+// level1→3500ms … level10→1600ms, level11→1400ms … level20→900ms
+function patternTimer(level){
+  if(level<=10) return 3500-(level-1)*210;
+  return 1400-(level-11)*50;
+}
+
+// ── PRO MODE ─────────────────────────────────────────────────────────────────
+function getProUnlocked(){ return parseInt(localStorage.getItem('pip_pro_unlocked')||'1'); }
+function setProUnlocked(v){ localStorage.setItem('pip_pro_unlocked',Math.max(getProUnlocked(),v)); }
+
+const PRO={
+  level:1, patternNum:1, startLevel:1,
+  currentPattern:[], remaining:[], clearPending:false,
+
+  start(fromLevel){
+    currentMode='pro';
+    setModeLabel('Pro Mode'); setInfoLabel('Level'); setHiVal(getProUnlocked());
+    this.startLevel = fromLevel || 1;
+    this.level=this.startLevel; this.patternNum=1; this.clearPending=false;
+    setScore(this.level-1); setInfo(`${this.level}-1`); setStatus('');
+    SFX.start();
+    addTimer(setTimeout(()=>this.showPattern(),500));
+  },
+
+  showPattern(){
+    resetAllBubbles();
+    this.clearPending=false;
+    this.currentPattern=generatePattern(this.level);
+    this.remaining=[...this.currentPattern];
+    this.currentPattern.forEach((idx,i)=>{
+      addTimer(setTimeout(()=>{ setBubble(idx,'lit'); SFX.light(); },i*60));
+    });
+    const dur=patternTimer(this.level);
+    const litDelay=this.currentPattern.length*60+50;
+    addTimer(setTimeout(()=>startTimerBar(dur),litDelay));
+    setStatus(`Level ${this.level} · Pattern ${this.patternNum}/5`);
+    setInfo(`${this.level}-${this.patternNum}`);
+    addTimer(setTimeout(()=>{
+      if(!this.clearPending && this.remaining.length>0) this.timeUp();
+    },litDelay+dur));
+  },
+
+  timeUp(){
+    stopTimerBar(); clearAllTimers();
+    SFX.over(); flashScreen('rgba(200,60,20,0.3)');
+    setStatus('Too slow!');
+    const cleared=this.level-1;
+    addTimer(setTimeout(()=>endGame('pro',cleared,`Reached Level ${this.level} · Pattern ${this.patternNum}`),700));
+  },
+
+  onTap(idx){
+    if(this.clearPending) return;
+    if(this.remaining.includes(idx)){
+      animPop(idx); SFX.pop();
+      setBubble(idx,'popped');
+      this.remaining=this.remaining.filter(i=>i!==idx);
+      if(this.remaining.length===0){
+        this.clearPending=true;
+        stopTimerBar(); clearAllTimers();
+        animFlashSuccess();
+        flashScreen('rgba(240,190,0,0.18)');
+        if(this.patternNum>=5){
+          // Level cleared
+          setProUnlocked(this.level);
+          setScore(this.level); bumpScore();
+          if(this.level>=20){
+            setStatus('You beat the game!');
+            addTimer(setTimeout(()=>this.victoryAnim(()=>endGame('pro',20,'All 20 levels cleared! 🏆',true)),300));
+          } else {
+            const clearedLevel=this.level;
+            this.level++; this.patternNum=1;
+            setStatus(`Level ${clearedLevel} clear!`);
+            addTimer(setTimeout(()=>this.levelUpAnim(clearedLevel,()=>{
+              setStatus(`Level ${this.level}!`);
+              addTimer(setTimeout(()=>this.showPattern(),500));
+            }),300));
+          }
+        } else {
+          SFX.clear();
+          this.patternNum++;
+          setScore(this.level-1); // score shows last fully cleared level
+          addTimer(setTimeout(()=>this.showPattern(),450));
+        }
+      }
+    } else if(bubbles[idx].el.classList.contains('popped-state')){
+      // double-tap fine
+    } else {
+      animWrong(idx); SFX.wrong();
+      flashScreen('rgba(200,60,20,0.3)');
+      stopTimerBar(); clearAllTimers();
+      setStatus('Wrong bubble!');
+      const cleared=this.level-1;
+      addTimer(setTimeout(()=>endGame('pro',cleared,`Reached Level ${this.level} · Pattern ${this.patternNum}`),700));
+    }
+  },
+
+  // Level-up animation: pip count = level%10 (10 for level 10), flash 5×, then crown
+  levelUpAnim(clearedLevel, onDone){
+    SFX.level();
+    resetAllBubbles();
+    const pipCount = clearedLevel % 10 === 0 ? 10 : clearedLevel % 10;
+    const pipIndices = Array.from({length: pipCount}, (_, i) => i);
+    const CROWN = [[7,8,9],[4,5],[7,8,9],[4,5],[1]];
+    const CROWN_STEP = 260;
+    const FLASH_ON = 120, FLASH_OFF = 80;
+
+    const runCrown = () => {
+      let ci = 0;
+      const doC = () => {
+        resetAllBubbles();
+        if(ci < CROWN.length){
+          CROWN[ci].forEach(i => setBubble(i,'lit'));
+          ci++;
+          addTimer(setTimeout(doC, CROWN_STEP));
+        } else {
+          resetAllBubbles();
+          addTimer(setTimeout(onDone, 200));
+        }
+      };
+      doC();
+    };
+
+    // Flash pips 5 times, then run crown
+    let flash = 0;
+    const doFlash = () => {
+      if(flash >= 5){ resetAllBubbles(); addTimer(setTimeout(runCrown, 180)); return; }
+      pipIndices.forEach(i => setBubble(i,'lit'));
+      addTimer(setTimeout(()=>{
+        resetAllBubbles();
+        flash++;
+        addTimer(setTimeout(doFlash, FLASH_OFF));
+      }, FLASH_ON));
+    };
+    doFlash();
+  },
+
+  // Victory animation: 3× (random flash → (0,2,4,5,8) held 500ms)
+  victoryAnim(onDone){
+    SFX.win();
+    const VICTORY_PAT = [0,2,4,5,8];
+    let rep = 0;
+    const doRep = () => {
+      if(rep >= 3){ resetAllBubbles(); addTimer(setTimeout(onDone, 200)); return; }
+      resetAllBubbles();
+      shuffle([0,1,2,3,4,5,6,7,8,9]).slice(0,4).forEach(i=>setBubble(i,'lit'));
+      addTimer(setTimeout(()=>{
+        resetAllBubbles();
+        addTimer(setTimeout(()=>{
+          VICTORY_PAT.forEach(i=>setBubble(i,'lit'));
+          addTimer(setTimeout(()=>{ resetAllBubbles(); rep++; addTimer(setTimeout(doRep,120)); },500));
+        },80));
+      },160));
+    };
+    doRep();
+  },
+};
+
+// ── POP & PASS ───────────────────────────────────────────────────────────────
+// Pass anim: columns (3)(0,4,7)(1,5,8)(2,6,9) × 4
+const PASS_SEQ=[[3],[0,4,7],[1,5,8],[2,6,9]];
+
+const POPPASS={
+  round:0, score:0,
+  currentPattern:[], remaining:[],
+  clearPending:false,
+
+  // Step interval: round1→300ms, round20+→70ms
+  passStepMs(){ return Math.max(70,300-Math.min(this.round-1,20)*11); },
+  roundPatternTimer(){ return Math.max(1200,3500-this.round*90); },
+
+  start(){
+    currentMode='pp';
+    setModeLabel('Pop & Pass'); setInfoLabel('Round'); setHiVal(getHi('pp')+' rounds');
+    this.round=0; this.score=0; this.clearPending=false;
+    setScore(0); setInfo('1'); setStatus('');
+    SFX.start();
+    addTimer(setTimeout(()=>this.showPattern(),500));
+  },
+
+  showPattern(){
+    this.clearPending=false;
+    resetAllBubbles();
+    this.round++;
+    setInfo(this.round);
+    const level=Math.min(20,Math.ceil(this.round/2));
+    this.currentPattern=generatePattern(level);
+    this.remaining=[...this.currentPattern];
+    this.currentPattern.forEach((idx,i)=>{
+      addTimer(setTimeout(()=>{ setBubble(idx,'lit'); SFX.light(); },i*60));
+    });
+    const dur=this.roundPatternTimer();
+    const litDelay=this.currentPattern.length*60+50;
+    addTimer(setTimeout(()=>startTimerBar(dur),litDelay));
+    setStatus(`Round ${this.round} — pop & pass!`);
+    addTimer(setTimeout(()=>{
+      if(!this.clearPending && this.remaining.length>0) this.timeUp();
+    },litDelay+dur));
+  },
+
+  timeUp(){
+    stopTimerBar(); clearAllTimers();
+    SFX.over(); flashScreen('rgba(200,60,20,0.3)');
+    setStatus('Time ran out!');
+    addTimer(setTimeout(()=>endGame('pp',this.round-1,`Survived ${this.round-1} round${this.round-1!==1?'s':''}`),700));
+  },
+
+  onTap(idx){
+    if(this.clearPending) return;
+    if(this.remaining.includes(idx)){
+      animPop(idx); SFX.pop();
+      setBubble(idx,'popped');
+      this.remaining=this.remaining.filter(i=>i!==idx);
+      if(this.remaining.length===0){
+        this.clearPending=true;
+        stopTimerBar(); clearAllTimers();
+        this.score++;
+        setScore(this.score); bumpScore();
+        SFX.pass();
+        flashScreen('rgba(240,190,0,0.12)');
+        this.playPassAnim(0);
+      }
+    } else if(bubbles[idx].el.classList.contains('popped-state')){
+      // fine
+    } else {
+      animWrong(idx); SFX.wrong();
+      flashScreen('rgba(200,60,20,0.3)');
+      stopTimerBar(); clearAllTimers();
+      setStatus('Wrong bubble!');
+      addTimer(setTimeout(()=>endGame('pp',this.round-1,`Survived ${this.round-1} round${this.round-1!==1?'s':''}`),700));
+    }
+  },
+
+  playPassAnim(rep){
+    if(rep>=4){
+      // Done — straight into next pattern
+      resetAllBubbles();
+      setStatus('');
+      addTimer(setTimeout(()=>this.showPattern(),200));
+      return;
+    }
+    const step=this.passStepMs();
+    let si=0;
+    const doStep=()=>{
+      resetAllBubbles();
+      if(si<PASS_SEQ.length){
+        PASS_SEQ[si].forEach(i=>setBubble(i,'arrow'));
+        si++;
+        addTimer(setTimeout(doStep,step));
+      } else {
+        addTimer(setTimeout(()=>this.playPassAnim(rep+1),step));
+      }
+    };
+    doStep();
+  },
+};
+
+// ── POPPIN' BLITZ ─────────────────────────────────────────────────────────────
+// 20 seconds. Start with 3 lit bubbles. Each pop reveals one more unlit bubble.
+// When all 10 are popped, reset board with 3 new lit bubbles.
+const BLITZ={
+  score:0, timeLeft:18000,
+  litSet:null, poppedSet:null, unlit:[],
+  gameTimer:null, accepting:false,
+
+  start(){
+    currentMode='blitz';
+    setModeLabel("Poppin' Blitz"); setInfoLabel('Time'); setHiVal(getHi('blitz'));
+    this.score=0; this.timeLeft=18000; this.accepting=false;
+    setScore(0); setInfo('18'); setStatus('Pop the lit bubbles!');
+    SFX.start();
+    this.gameTimer=addTimer(setInterval(()=>{
+      this.timeLeft-=100;
+      const secs=Math.ceil(this.timeLeft/1000);
+      setInfo(Math.max(0,secs));
+      if(secs<=5) SFX.tick();
+      if(this.timeLeft<=0){ clearInterval(this.gameTimer); this.end(); }
+    },100));
+    startTimerBar(18000);
+    addTimer(setTimeout(()=>this.newBoard(),300));
+  },
+
+  newBoard(){
+    resetAllBubbles();
+    this.litSet=new Set();
+    this.poppedSet=new Set();
+    this.accepting=false;
+    // Randomise all 10; first 3 lit, rest queued
+    const order=shuffle([0,1,2,3,4,5,6,7,8,9]);
+    this.unlit=order.slice(3);
+    const initial=order.slice(0,3);
+    initial.forEach((idx,i)=>{
+      addTimer(setTimeout(()=>{ setBubble(idx,'lit'); SFX.light(); this.litSet.add(idx); },i*60));
+    });
+    addTimer(setTimeout(()=>{ this.accepting=true; },initial.length*60+60));
+  },
+
+  onTap(idx){
+    if(!this.accepting) return;
+    if(this.litSet.has(idx)){
+      // Correct pop
+      animPop(idx); SFX.pop();
+      this.litSet.delete(idx);
+      this.poppedSet.add(idx);
+      setBubble(idx,'popped');
+      this.score++;
+      setScore(this.score); bumpScore();
+      showFloat(idx,'+1','#004a70');
+      // Reveal next queued bubble
+      if(this.unlit.length>0){
+        const next=this.unlit.shift();
+        addTimer(setTimeout(()=>{ setBubble(next,'lit'); SFX.light(); this.litSet.add(next); },80));
+      }
+      // All 10 popped? (litSet empty AND unlit empty)
+      if(this.litSet.size===0 && this.unlit.length===0){
+        this.accepting=false;
+        flashScreen('rgba(240,190,0,0.18)');
+        SFX.clear();
+        addTimer(setTimeout(()=>this.newBoard(),400));
+      }
+    } else if(this.poppedSet.has(idx)){
+      // Already popped — fine
+    } else {
+      // Unlit — wrong
+      animWrong(idx); SFX.wrong();
+      showFloat(idx,'✕','#aa2200');
+    }
+  },
+
+  end(){
+    stopTimerBar(); clearAllTimers();
+    SFX.over();
+    endGame('blitz',this.score,`${this.score} bubbles in 18 seconds`);
+  },
+};
+
+// ── ROUTER ───────────────────────────────────────────────────────────────────
+function onBubbleTap(idx){
+  if(currentMode==='pro')        PRO.onTap(idx);
+  else if(currentMode==='pp')    POPPASS.onTap(idx);
+  else if(currentMode==='blitz') BLITZ.onTap(idx);
+}
+
+// ── GAME OVER ────────────────────────────────────────────────────────────────
+function endGame(mode,score,detail,win=false){
+  currentMode=null; clearAllTimers(); stopTimerBar(); resetAllBubbles();
+  const hi = mode==='pro' ? getProUnlocked() : getHi(mode);
+  const isNew = score>hi;
+  if(mode!=='pro' && isNew) setHi(mode,score); // pro hi is handled via setProUnlocked in onTap
+  document.getElementById('go-title').textContent=win?'🏆 Complete!':'Game Over!';
+  document.getElementById('final-score-el').textContent=score;
+  document.getElementById('final-rank-el').textContent=getRank(mode,score);
+  document.getElementById('final-detail-el').textContent=detail;
+  const nr=document.getElementById('new-record-el');
+  if(isNew&&score>0) nr.classList.remove('hidden'); else nr.classList.add('hidden');
+  document.getElementById('restart-btn').dataset.mode=mode;
+  document.getElementById('gameover-screen').classList.remove('hidden');
+  updateHiDisplay();
+}
+
+function getRank(mode,score){
+  if(mode==='pro'){
+    if(score>=20) return '🏆 Legendary!';
+    if(score>=15) return '⭐ Expert';
+    if(score>=10) return '😊 Skilled';
+    if(score>=5)  return '🙂 Getting there';
+    return '😬 Keep trying!';
+  }
+  if(mode==='pp'){
+    if(score>=20) return '🏆 Unstoppable!';
+    if(score>=12) return '⭐ Hot streak!';
+    if(score>=6)  return '😊 Good run!';
+    if(score>=3)  return '🙂 Not bad!';
+    return '😬 Keep trying!';
+  }
+  if(mode==='blitz'){
+    if(score>=60) return '🏆 Blazing fast!';
+    if(score>=40) return '⭐ Excellent!';
+    if(score>=25) return '😊 Good speed!';
+    if(score>=12) return '🙂 Not bad!';
+    return '😬 Keep trying!';
+  }
+  return '';
+}
+
+function updateHiDisplay(){
+  const ul=getProUnlocked();
+  document.getElementById('hi-pro').textContent   = ul>1 ? `Unlocked: Level ${ul}` : 'Start from Level 1';
+  document.getElementById('hi-pp').textContent    =`BEST: ${getHi('pp')} rounds`;
+  document.getElementById('hi-blitz').textContent =`BEST: ${getHi('blitz')} bubbles`;
+}
+
+buildBubbles();
+updateHiDisplay();
+
+let soundOn=true;
+function updateVolBtns(){
+  const label=soundOn?'🔊 Sound: ON':'🔇 Sound: OFF';
+  document.getElementById('vol-btn').textContent=label;
+  document.getElementById('title-vol-btn').textContent=label;
+  VOL=soundOn?0.45:0;
+}
+document.getElementById('vol-btn').addEventListener('pointerdown',()=>{ soundOn=!soundOn; updateVolBtns(); });
+document.getElementById('title-vol-btn').addEventListener('pointerdown',()=>{ soundOn=!soundOn; updateVolBtns(); });
+
+document.getElementById('pro-continue').addEventListener('pointerdown',()=>{ document.getElementById('title-screen').classList.add('hidden'); PRO.start(getProUnlocked()); });
+document.getElementById('pro-from1').addEventListener('pointerdown',()=>{ document.getElementById('title-screen').classList.add('hidden'); PRO.start(1); });
+document.getElementById('card-pp').addEventListener('pointerdown',()=>{ document.getElementById('title-screen').classList.add('hidden'); POPPASS.start(); });
+document.getElementById('card-blitz').addEventListener('pointerdown',()=>{ document.getElementById('title-screen').classList.add('hidden'); BLITZ.start(); });
+
+document.getElementById('restart-btn').addEventListener('pointerdown',()=>{
+  const mode=document.getElementById('restart-btn').dataset.mode;
+  document.getElementById('gameover-screen').classList.add('hidden');
+  clearAllTimers();
+  setTimeout(()=>{
+    if(mode==='pro')        PRO.start(getProUnlocked());
+    else if(mode==='pp')    POPPASS.start();
+    else if(mode==='blitz') BLITZ.start();
+  },150);
+});
+document.getElementById('menu-btn').addEventListener('pointerdown',()=>{
+  clearAllTimers(); currentMode=null; stopTimerBar(); resetAllBubbles();
+  document.getElementById('gameover-screen').classList.add('hidden');
+  document.getElementById('title-screen').classList.remove('hidden');
+  setStatus(''); setModeLabel('Select a game'); setScore(0); setInfo('—');
+  updateHiDisplay();
+});
+</script>
+</body>
+</html>
