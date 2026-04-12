@@ -1,0 +1,1006 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>GATOR PANIC</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Boogaloo&family=Nunito:wght@700;800;900&display=swap');
+
+:root {
+  --cave-yel:    #f5c800;
+  --cave-yel-lt: #ffe858;
+  --cave-yel-dk: #c8a000;
+  --cave-yel-xdk:#7a6000;
+  --water-top:   #039be5;
+  --water-mid:   #0277bd;
+  --water-bot:   #01579b;
+  --hud-bg:      #1a0800;
+  --score:       #ffdd44;
+  --text:        #ffffff;
+  --led-red:     #ff4400;
+}
+
+* { box-sizing:border-box; margin:0; padding:0;
+    touch-action:manipulation; -webkit-tap-highlight-color:transparent; user-select:none; }
+
+html, body { width:100%; height:100%; overflow:hidden; }
+
+body {
+  background:#000;
+  display:flex; align-items:center; justify-content:center;
+  font-family:'Nunito',sans-serif; color:var(--text);
+}
+
+/* ── ROTATE OVERLAY (portrait only) ── */
+#rotate-overlay {
+  display:none;
+  position:fixed; inset:0; z-index:9000;
+  background:linear-gradient(135deg,#0d3320,#1a5a38);
+  flex-direction:column; align-items:center; justify-content:center;
+  gap:18px; text-align:center; padding:24px;
+}
+#rotate-overlay .rot-icon { font-size:64px; animation:rot-spin 2s ease-in-out infinite; }
+@keyframes rot-spin {
+  0%,100%{ transform:rotate(0deg); }
+  40%    { transform:rotate(90deg); }
+  60%    { transform:rotate(90deg); }
+}
+#rotate-overlay .rot-title {
+  font-family:'Boogaloo',cursive; font-size:28px; color:var(--cave-yel);
+  text-shadow:2px 2px 0 #000;
+}
+#rotate-overlay .rot-sub { font-size:13px; font-weight:700; color:rgba(255,255,255,0.6); }
+
+@media (orientation:portrait) {
+  #rotate-overlay { display:flex; }
+  #app            { display:none; }
+}
+
+/* ── APP SHELL (landscape) ── */
+#app {
+  width:100vw; height:100vh;
+  display:flex; flex-direction:column;
+  align-items:stretch; overflow:hidden;
+}
+
+/* ── HUD ── */
+#hud {
+  flex-shrink:0;
+  background:var(--hud-bg);
+  border-bottom:3px solid var(--cave-yel-dk);
+  padding:3px 10px;
+  display:flex; align-items:center; justify-content:space-between; gap:6px;
+}
+#game-title {
+  font-family:'Boogaloo',cursive; font-size:clamp(14px,2.8vw,22px);
+  color:var(--cave-yel); text-shadow:0 0 10px rgba(255,220,0,0.5);
+  letter-spacing:1px; white-space:nowrap; flex-shrink:0;
+}
+.led-block {
+  display:flex; flex-direction:column; align-items:center;
+  background:#000; border-radius:5px; padding:2px 8px;
+  border:2px solid #333; min-width:52px;
+}
+.led-label { font-size:6px; font-weight:900; letter-spacing:2px; color:#666; text-transform:uppercase; }
+.led-val {
+  font-family:'Boogaloo',cursive; font-size:clamp(16px,3.2vw,24px); line-height:1;
+  color:var(--led-red); text-shadow:0 0 6px rgba(255,80,0,0.6);
+}
+.led-val.green { color:#00e676; text-shadow:0 0 6px rgba(0,230,120,0.5); }
+.led-val.white { color:#fff;    text-shadow:0 0 6px rgba(255,255,255,0.4); }
+.led-val.urgent { color:#ff2200; animation:urgent-pulse 0.4s infinite alternate; }
+@keyframes urgent-pulse { from{text-shadow:0 0 4px #ff2200} to{text-shadow:0 0 18px #ff2200,0 0 32px #ff4400} }
+.led-val.bump { animation:bump 0.15s ease; }
+@keyframes bump { 0%{transform:scale(1)} 50%{transform:scale(1.4)} 100%{transform:scale(1)} }
+#bonus-label {
+  font-family:'Boogaloo',cursive; font-size:11px;
+  color:var(--cave-yel); text-shadow:0 0 8px var(--cave-yel);
+  animation:blink-bonus 0.45s infinite alternate; display:none;
+}
+@keyframes blink-bonus { from{opacity:0.4} to{opacity:1} }
+#hud-right { display:flex; align-items:center; gap:6px; }
+
+/* ── LAGOON ── */
+#lagoon-wrap { flex:1; position:relative; overflow:hidden; }
+#lagoon {
+  width:100%; height:100%;
+  background:linear-gradient(180deg,var(--water-top) 0%,var(--water-mid) 55%,var(--water-bot) 100%);
+  position:relative;
+}
+#lagoon::before {
+  content:''; position:absolute; inset:0; pointer-events:none;
+  background:repeating-linear-gradient(180deg,transparent 0,transparent 22px,rgba(255,255,255,0.055) 22px,rgba(255,255,255,0.055) 25px);
+  animation:water-drift 2.8s linear infinite;
+}
+@keyframes water-drift { from{background-position:0 0} to{background-position:0 25px} }
+
+/* ── CAVE PILLARS — yellow columns between/around slots, above gators ── */
+.cave-pillar {
+  position:absolute; top:0; z-index:20; pointer-events:none;
+  background:linear-gradient(180deg, var(--cave-yel-lt) 0%, var(--cave-yel) 50%, var(--cave-yel-dk) 100%);
+  box-shadow:inset 0 2px 0 rgba(255,255,255,0.4);
+}
+.cave-pillar::before {
+  content:''; position:absolute; inset:0;
+  background-image:radial-gradient(circle,rgba(255,255,255,0.22) 2px,transparent 2px);
+  background-size:16px 16px; background-position:8px 8px;
+}
+/* Dark bottom lip on each pillar */
+.cave-pillar::after {
+  content:''; position:absolute; bottom:-5px; left:0; right:0; height:5px;
+  background:linear-gradient(180deg,var(--cave-yel-xdk),#3a2a00);
+}
+
+/* Horizontal top bar spanning full width — the "underscores" */
+.cave-top-bar {
+  position:absolute; top:0; z-index:21; pointer-events:none;
+  background:linear-gradient(180deg, var(--cave-yel-lt) 0%, var(--cave-yel) 60%, var(--cave-yel-dk) 100%);
+  box-shadow:0 3px 0 rgba(0,0,0,0.25), inset 0 2px 0 rgba(255,255,255,0.4);
+}
+.gator {
+  position:absolute; z-index:14;
+  transform:translateX(-50%);
+  cursor:pointer; pointer-events:auto;
+}
+.gator-inner { width:100%; transition:filter 0.08s; }
+.gator.recoiling .gator-inner { filter:drop-shadow(0 0 8px #ffcc00) brightness(1.8); }
+.gator.biting    .gator-inner { filter:drop-shadow(0 0 12px #ff2200) brightness(1.4) saturate(1.4); }
+
+/* ── SPLASH ── */
+.splash {
+  position:absolute; border-radius:50%;
+  border:3px solid rgba(255,255,255,0.75);
+  pointer-events:none; z-index:9;
+  animation:splash-out 0.42s ease-out forwards;
+}
+@keyframes splash-out {
+  0%  { transform:translate(-50%,-50%) scale(0.2); opacity:0.9; }
+  100%{ transform:translate(-50%,-50%) scale(2.2); opacity:0; }
+}
+
+/* ── BITE LINE ── */
+#bite-line {
+  position:absolute; left:0; right:0; height:3px;
+  background:repeating-linear-gradient(90deg,transparent,transparent 10px,rgba(255,80,30,0.28) 10px,rgba(255,80,30,0.28) 20px);
+  z-index:3; pointer-events:none; transition:box-shadow 0.2s;
+}
+#bite-line.danger { animation:bite-pulse 0.28s infinite alternate; }
+@keyframes bite-pulse {
+  from{ box-shadow:0 0 8px rgba(255,50,30,0.6); }
+  to  { box-shadow:0 0 22px rgba(255,50,30,1),0 0 44px rgba(255,50,30,0.4); }
+}
+
+/* ── FLOAT TEXT ── */
+.float-txt {
+  position:fixed; font-family:'Boogaloo',cursive; font-size:20px; font-weight:900;
+  pointer-events:none; z-index:700;
+  animation:float-up 0.5s ease forwards;
+  text-shadow:2px 2px 0 rgba(0,0,0,0.6);
+}
+@keyframes float-up { 0%{opacity:1;transform:translateY(0) scale(1)} 100%{opacity:0;transform:translateY(-42px) scale(1.2)} }
+
+#screen-flash { position:fixed; inset:0; pointer-events:none; z-index:600; opacity:0; }
+
+/* ── STATUS BAR ── */
+#bottom {
+  flex-shrink:0; width:100%; padding:3px 12px;
+  background:var(--hud-bg); border-top:3px solid var(--cave-yel-dk);
+  display:flex; align-items:center; justify-content:space-between;
+}
+#status-text { font-family:'Boogaloo',cursive; font-size:clamp(11px,2vw,15px); color:rgba(255,255,255,0.6); letter-spacing:1px; }
+#vol-btn { font-size:11px; font-weight:800; background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); border-radius:12px; padding:3px 10px; color:var(--text); cursor:pointer; }
+
+/* ── BONUS BANNER ── */
+#bonus-banner {
+  position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
+  z-index:350; pointer-events:none;
+  font-family:'Boogaloo',cursive; font-size:clamp(28px,7vw,52px);
+  color:var(--cave-yel); text-shadow:4px 4px 0 #000,0 0 24px rgba(255,220,68,0.8);
+  display:none;
+}
+.banner-anim { animation:banner-pop 1.2s ease forwards; }
+@keyframes banner-pop {
+  0%  {opacity:0;transform:translate(-50%,-50%) scale(0.4)}
+  20% {opacity:1;transform:translate(-50%,-50%) scale(1.15)}
+  80% {opacity:1;transform:translate(-50%,-50%) scale(1)}
+  100%{opacity:0;transform:translate(-50%,-50%) scale(0.85)}
+}
+
+/* ── SCREENS ── */
+.screen {
+  position:fixed; inset:0; display:flex; flex-direction:row;
+  align-items:stretch; z-index:400;
+  background:linear-gradient(135deg,#0d4a28 0%,#024a7a 100%);
+}
+.screen.hidden { display:none; }
+
+/* Title screen: left = 35%, right = 65% */
+#title-left {
+  flex:0 0 35%; display:flex; flex-direction:column;
+  align-items:center; justify-content:center; gap:6px;
+  padding:12px 14px 12px 20px; border-right:2px solid rgba(255,255,255,0.1);
+  overflow:hidden;
+}
+#title-right {
+  flex:0 0 65%; display:flex; flex-direction:column;
+  align-items:center; justify-content:center; gap:8px;
+  padding:12px 24px 12px 14px;
+}
+
+.screen-title {
+  font-family:'Boogaloo',cursive; font-size:clamp(26px,4.8vw,46px);
+  color:var(--cave-yel); text-shadow:4px 4px 0 #000,0 0 20px rgba(255,220,0,0.5); line-height:1;
+  text-align:center;
+}
+.screen-sub { font-size:8px; font-weight:900; letter-spacing:3px; color:rgba(255,255,255,0.35); text-transform:uppercase; }
+
+.tier-card {
+  background:rgba(0,0,0,0.35); border:2px solid rgba(255,255,255,0.15);
+  border-radius:12px; padding:6px 14px; width:100%; max-width:280px;
+  display:flex; flex-direction:column; gap:2px;
+}
+.tier-row { display:flex; justify-content:space-between; align-items:center; font-size:11px; font-weight:800; color:rgba(255,255,255,0.65); padding:1px 0; }
+
+.info-stack { display:flex; flex-direction:column; gap:7px; width:100%; }
+.info-card {
+  background:rgba(0,0,0,0.28); border:1px solid rgba(255,255,255,0.12);
+  border-radius:9px; padding:8px 12px; text-align:left;
+}
+.info-card-title { font-family:'Boogaloo',cursive; font-size:16px; color:var(--cave-yel); margin-bottom:2px; }
+.info-card-body  { font-size:10px; font-weight:700; color:rgba(255,255,255,0.72); line-height:1.5; }
+
+/* Gameover screen: centered column */
+#gameover-screen { flex-direction:column; align-items:center; justify-content:center; gap:6px; padding:16px; text-align:center; }
+.result-score { font-family:'Boogaloo',cursive; font-size:clamp(40px,9vw,64px); color:var(--cave-yel); text-shadow:4px 4px 0 #000,0 0 24px rgba(255,220,0,0.5); line-height:1; }
+.result-rank  { font-family:'Boogaloo',cursive; font-size:clamp(18px,4vw,26px); margin-top:0; }
+.result-detail{ font-size:11px; font-weight:700; color:rgba(255,255,255,0.45); margin-top:2px; }
+.new-record   { font-family:'Boogaloo',cursive; font-size:14px; color:var(--cave-yel); animation:blink-bonus 0.5s infinite alternate; }
+
+.btn-row { display:flex; gap:10px; }
+.btn { font-family:'Boogaloo',cursive; font-size:17px; padding:11px 28px; border-radius:50px; border:none; cursor:pointer; letter-spacing:1px; transition:transform 0.08s,box-shadow 0.08s; box-shadow:0 5px 0 rgba(0,0,0,0.4); }
+.btn:active { transform:translateY(3px); box-shadow:0 2px 0 rgba(0,0,0,0.4); }
+.btn-gold { background:linear-gradient(180deg,var(--cave-yel-lt),var(--cave-yel-dk)); color:#1a0a00; }
+.btn-back { background:rgba(255,255,255,0.12); color:var(--text); border:2px solid rgba(255,255,255,0.2); box-shadow:none; }
+</style>
+</head>
+<body>
+
+<!-- Portrait rotate prompt -->
+<div id="rotate-overlay">
+  <div class="rot-icon">📱</div>
+  <div class="rot-title">Rotate to Play!</div>
+  <div class="rot-sub">Gator Panic is a landscape game</div>
+</div>
+
+<div id="app">
+  <!-- HUD -->
+  <div id="hud">
+    <div id="game-title">🐊 GATOR PANIC</div>
+    <div class="led-block"><div class="led-label">Whacks</div><div class="led-val green" id="whacks-val">0</div></div>
+    <div class="led-block"><div class="led-label">Bites</div><div class="led-val" id="bites-val">0</div></div>
+    <div class="led-block"><div class="led-label">Score</div><div class="led-val white" id="score-val">0</div></div>
+    <div class="led-block"><div class="led-label">Time</div><div class="led-val white" id="timer-val">50</div></div>
+    <div id="hud-right">
+      <div id="bonus-label">BONUS!</div>
+      <button id="vol-btn">🔊</button>
+    </div>
+  </div>
+
+  <!-- Lagoon -->
+  <div id="lagoon-wrap">
+    <div id="lagoon">
+      <div id="bite-line"></div>
+    </div>
+  </div>
+
+  <!-- Status bar -->
+  <div id="bottom">
+    <div id="status-text">Tap to start!</div>
+  </div>
+</div>
+
+<div id="screen-flash"></div>
+<div id="bonus-banner">⚡ BONUS ROUND!</div>
+
+<!-- TITLE SCREEN -->
+<div class="screen" id="title-screen">
+  <div id="title-left">
+    <div class="screen-title">GATOR<br>PANIC</div>
+    <div class="screen-sub">ワニワニパニック</div>
+    <div class="tier-card">
+      <div style="font-size:8px;font-weight:900;letter-spacing:2px;color:rgba(255,255,255,0.3);text-transform:uppercase;margin-bottom:2px">Score Tiers</div>
+      <div class="tier-row"><span>0 – 19</span> <span style="color:#888">😬 Give Up?</span></div>
+      <div class="tier-row"><span>20 – 39</span><span style="color:#aaa">😅 Try Harder</span></div>
+      <div class="tier-row"><span>40 – 59</span><span style="color:#88ccff">🙂 Not Bad</span></div>
+      <div class="tier-row"><span>60 – 79</span><span style="color:#88ffaa">😊 Good</span></div>
+      <div class="tier-row"><span>80+</span>    <span style="color:#ffdd88">⭐ Expert</span></div>
+    </div>
+    <div style="font-size:10px;font-weight:800;color:rgba(255,255,255,0.3)">BEST: <span id="title-hi">0</span></div>
+  </div>
+  <div id="title-right">
+    <div class="info-stack">
+      <div class="info-card">
+        <div class="info-card-title">🔨 How to Play</div>
+        <div class="info-card-body">Tap gators as they rise from the lagoon before they bite!</div>
+      </div>
+      <div class="info-card">
+        <div class="info-card-title">🏆 Score</div>
+        <div class="info-card-body">Score = Whacks − Bites. Misses are free. Bites cost you!</div>
+      </div>
+      <div class="info-card">
+        <div class="info-card-title">⚡ Bonus Round</div>
+        <div class="info-card-body">Land 40+ whacks to unlock 10 seconds of bonus time!</div>
+      </div>
+    </div>
+    <button class="btn btn-gold" id="start-btn" style="margin-top:4px">PLAY!</button>
+  </div>
+</div>
+
+<!-- GAME OVER SCREEN -->
+<div class="screen hidden" id="gameover-screen">
+  <div class="screen-title" id="go-title">TIME'S UP!</div>
+  <div class="new-record hidden" id="new-record-el">★ NEW RECORD ★</div>
+  <div class="result-score" id="final-score-el">0</div>
+  <div class="result-rank"  id="final-rank-el"></div>
+  <div class="result-detail" id="final-detail-el"></div>
+  <div class="btn-row">
+    <button class="btn btn-gold" id="restart-btn">Play Again</button>
+    <button class="btn btn-back" id="menu-btn">← Menu</button>
+  </div>
+  <div style="font-size:10px;font-weight:800;color:rgba(255,255,255,0.3)">BEST: <span id="go-hi-el">0</span></div>
+</div>
+
+<script>
+// ── AUDIO ─────────────────────────────────────────────────────────────────────
+let actx=null, soundOn=true;
+function getCtx(){if(!actx)actx=new(window.AudioContext||window.webkitAudioContext)();if(actx.state==='suspended')actx.resume();return actx;}
+function tone(f,type,dur,vol=0.3){try{const ac=getCtx(),o=ac.createOscillator(),g=ac.createGain();o.connect(g);g.connect(ac.destination);o.type=type;o.frequency.value=f;const v=vol*(soundOn?1:0);g.gain.setValueAtTime(v,ac.currentTime);g.gain.exponentialRampToValueAtTime(0.001,ac.currentTime+dur);o.start();o.stop(ac.currentTime+dur);}catch(e){}}
+function sweep(f1,f2,type,dur,vol=0.3){try{const ac=getCtx(),o=ac.createOscillator(),g=ac.createGain();o.connect(g);g.connect(ac.destination);o.type=type;o.frequency.setValueAtTime(f1,ac.currentTime);o.frequency.exponentialRampToValueAtTime(f2,ac.currentTime+dur);const v=vol*(soundOn?1:0);g.gain.setValueAtTime(v,ac.currentTime);g.gain.exponentialRampToValueAtTime(0.001,ac.currentTime+dur);o.start();o.stop(ac.currentTime+dur);}catch(e){}}
+function noise(dur,vol=0.1){try{const ac=getCtx(),buf=ac.createBuffer(1,ac.sampleRate*dur,ac.sampleRate),d=buf.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;const src=ac.createBufferSource(),g=ac.createGain();src.buffer=buf;src.connect(g);g.connect(ac.destination);const v=vol*(soundOn?1:0);g.gain.setValueAtTime(v,ac.currentTime);g.gain.exponentialRampToValueAtTime(0.001,ac.currentTime+dur);src.start();src.stop(ac.currentTime+dur);}catch(e){}}
+const SFX={
+  whack(){ sweep(320,160,'sine',0.09,0.5); noise(0.05,0.2); },
+  bite() { sweep(80,40,'sawtooth',0.3,0.5); noise(0.12,0.25); tone(180,'square',0.1,0.3); },
+  emerge(){ sweep(160,230,'sine',0.05,0.08); },
+  bonus(){ [440,554,659,880,1047].forEach((f,i)=>setTimeout(()=>tone(f,'square',0.1,0.25),i*60)); },
+  end()  { sweep(300,100,'sawtooth',0.6,0.4); setTimeout(()=>sweep(150,60,'sawtooth',0.7,0.3),450); },
+  start(){ [330,440,554,660].forEach((f,i)=>setTimeout(()=>tone(f,'square',0.08,0.2),i*70)); },
+};
+
+// ── CONSTANTS ─────────────────────────────────────────────────────────────────
+const NUM_CAVES = 5;
+const ST = {HIDDEN:0, EMERGING:1, EXTENDED:2, RECOILING:3, RETREATING:4, BITING:5};
+
+// Slot dimensions — set by buildLagoon() based on screen size
+let PANEL_H, SLOT_W, SLOT_H, GATOR_W, GATOR_H, BITE_Y, LAGOON_W, LAGOON_H;
+
+// ── GATOR PERSONALITIES ───────────────────────────────────────────────────────
+// emergeSpeedMult > 1 = rises faster; biteWindowMult > 1 = more time before bite
+const PERSONALITIES = [
+  {
+    // 0 DIZZY — spiral eyes, slow, long window
+    name:'Dizzy', bodyColor:'#3aaa3a', bellyColor:'#c8e8a0',
+    emergeSpeedMult:0.88, biteWindowMult:1.20,
+    face:(dk)=>`
+      <circle cx="18" cy="68" r="8" fill="white" stroke="${dk}" stroke-width="1.5"/>
+      <circle cx="46" cy="68" r="8" fill="white" stroke="${dk}" stroke-width="1.5"/>
+      <path d="M18 64 a5 5 0 1 1 0.01 0 M18 65.5 a3.5 3.5 0 1 1 0.01 0 M18 67 a2 2 0 1 1 0.01 0"
+            fill="none" stroke="#333" stroke-width="1.1" stroke-linecap="round"/>
+      <path d="M46 64 a5 5 0 1 1 0.01 0 M46 65.5 a3.5 3.5 0 1 1 0.01 0 M46 67 a2 2 0 1 1 0.01 0"
+            fill="none" stroke="#333" stroke-width="1.1" stroke-linecap="round"/>
+      <circle cx="18" cy="68" r="1.2" fill="#333"/>
+      <circle cx="46" cy="68" r="1.2" fill="#333"/>
+      <line x1="26" y1="68" x2="38" y2="68" stroke="${dk}" stroke-width="1.8"/>`,
+  },
+  {
+    // 1 CHOMPER — angry brows + dark shades, fast, short window
+    name:'Chomper', bodyColor:'#2a8a2a', bellyColor:'#b0d888',
+    emergeSpeedMult:1.25, biteWindowMult:0.72,
+    face:(dk)=>`
+      <rect x="8"  y="61" width="19" height="11" rx="3" fill="#111" stroke="#333" stroke-width="1.5"/>
+      <rect x="37" y="61" width="19" height="11" rx="3" fill="#111" stroke="#333" stroke-width="1.5"/>
+      <line x1="27" y1="66" x2="37" y2="66" stroke="#333" stroke-width="2"/>
+      <rect x="10" y="63" width="5" height="3" rx="1" fill="rgba(255,60,60,0.3)"/>
+      <rect x="39" y="63" width="5" height="3" rx="1" fill="rgba(255,60,60,0.3)"/>
+      <path d="M8 62 Q17 56 27 61"  stroke="${dk}" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+      <path d="M37 61 Q47 56 56 62" stroke="${dk}" stroke-width="3.5" fill="none" stroke-linecap="round"/>`,
+  },
+  {
+    // 2 GOGGLES — scared round eyes, slow, long window
+    name:'Goggles', bodyColor:'#44b844', bellyColor:'#d0f0a8',
+    emergeSpeedMult:0.82, biteWindowMult:1.40,
+    face:(dk)=>`
+      <circle cx="18" cy="68" r="10" fill="white" stroke="${dk}" stroke-width="1.5"/>
+      <circle cx="46" cy="68" r="10" fill="white" stroke="${dk}" stroke-width="1.5"/>
+      <circle cx="18" cy="68" r="6"  fill="#222"/>
+      <circle cx="46" cy="68" r="6"  fill="#222"/>
+      <circle cx="15" cy="65" r="2"  fill="white"/>
+      <circle cx="43" cy="65" r="2"  fill="white"/>
+      <line x1="28" y1="68" x2="36" y2="68" stroke="${dk}" stroke-width="2.5"/>`,
+  },
+  {
+    // 3 SLICK — X eyes, slightly fast, shorter window
+    name:'Slick', bodyColor:'#339933', bellyColor:'#c0e098',
+    emergeSpeedMult:1.05, biteWindowMult:0.80,
+    face:(dk)=>`
+      <circle cx="18" cy="68" r="8" fill="white" stroke="${dk}" stroke-width="1.5"/>
+      <circle cx="46" cy="68" r="8" fill="white" stroke="${dk}" stroke-width="1.5"/>
+      <line x1="13" y1="63" x2="23" y2="73" stroke="#222" stroke-width="2.5" stroke-linecap="round"/>
+      <line x1="23" y1="63" x2="13" y2="73" stroke="#222" stroke-width="2.5" stroke-linecap="round"/>
+      <line x1="41" y1="63" x2="51" y2="73" stroke="#222" stroke-width="2.5" stroke-linecap="round"/>
+      <line x1="51" y1="63" x2="41" y2="73" stroke="#222" stroke-width="2.5" stroke-linecap="round"/>
+      <line x1="26" y1="68" x2="38" y2="68" stroke="${dk}" stroke-width="1.8"/>`,
+  },
+  {
+    // 4 SNAGGLES — beady eyes + buck tooth, slightly fast
+    name:'Snaggles', bodyColor:'#28882e', bellyColor:'#b0d888',
+    emergeSpeedMult:1.15, biteWindowMult:0.90,
+    face:(dk)=>`
+      <circle cx="19" cy="67" r="5" fill="#111" stroke="${dk}" stroke-width="1.5"/>
+      <circle cx="45" cy="67" r="5" fill="#111" stroke="${dk}" stroke-width="1.5"/>
+      <circle cx="17" cy="65" r="2" fill="white"/>
+      <circle cx="43" cy="65" r="2" fill="white"/>
+      <rect x="29" y="75" width="6" height="9" rx="2" fill="white" stroke="${dk}" stroke-width="1"/>`,
+  },
+];
+
+// ── GATOR SVG ─────────────────────────────────────────────────────────────────
+// viewBox 0 0 64 108 — body top (hidden in slot), face bottom (visible)
+function makeGatorSVG(pidx, biting=false){
+  const p=PERSONALITIES[pidx], bc=p.bodyColor, belly=p.bellyColor, dk='#1a5a1a';
+  const body=`
+    <rect x="19" y="0" width="26" height="56" rx="10" fill="${bc}"/>
+    <ellipse cx="32" cy="12" rx="8" ry="5" fill="${dk}" opacity="0.28"/>
+    <ellipse cx="32" cy="26" rx="7" ry="4" fill="${dk}" opacity="0.22"/>
+    <ellipse cx="32" cy="40" rx="6" ry="4" fill="${dk}" opacity="0.16"/>
+    <rect x="27" y="6" width="10" height="46" rx="5" fill="${belly}" opacity="0.38"/>`;
+  const head=`
+    <ellipse cx="32" cy="70" rx="27" ry="25" fill="${bc}"/>
+    <ellipse cx="32" cy="58" rx="21" ry="13" fill="${dk}" opacity="0.28"/>
+    <ellipse cx="23" cy="51" rx="4"  ry="3"  fill="${dk}" opacity="0.45"/>
+    <ellipse cx="41" cy="51" rx="4"  ry="3"  fill="${dk}" opacity="0.45"/>
+    <ellipse cx="17" cy="66" rx="5"  ry="3"  fill="${dk}" opacity="0.18"/>
+    <ellipse cx="47" cy="66" rx="5"  ry="3"  fill="${dk}" opacity="0.18"/>`;
+  const face=p.face(dk);
+  const closed=`
+    <ellipse cx="32" cy="87" rx="20" ry="13" fill="${bc}"/>
+    <ellipse cx="25" cy="81" rx="3" ry="2" fill="${dk}" opacity="0.55"/>
+    <ellipse cx="39" cy="81" rx="3" ry="2" fill="${dk}" opacity="0.55"/>
+    <path d="M13 91 Q22 98 32 99 Q42 98 51 91" stroke="${dk}" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+    <polygon points="21,92 24,98 27,92" fill="white" opacity="0.75"/>
+    <polygon points="30,93 33,99 36,93" fill="white" opacity="0.75"/>
+    <polygon points="39,92 42,98 45,92" fill="white" opacity="0.75"/>`;
+  const open=`
+    <ellipse cx="32" cy="81" rx="20" ry="11" fill="${bc}"/>
+    <ellipse cx="25" cy="75" rx="3"  ry="2"  fill="${dk}" opacity="0.55"/>
+    <ellipse cx="39" cy="75" rx="3"  ry="2"  fill="${dk}" opacity="0.55"/>
+    <rect x="13" y="87" width="38" height="5" rx="2" fill="white"/>
+    <polygon points="14,87 16,80 18,87" fill="white"/>
+    <polygon points="20,87 22,80 24,87" fill="white"/>
+    <polygon points="26,87 28,80 30,87" fill="white"/>
+    <polygon points="32,87 34,80 36,87" fill="white"/>
+    <polygon points="38,87 40,80 42,87" fill="white"/>
+    <polygon points="44,87 46,80 48,87" fill="white"/>
+    <path d="M13 92 Q32 108 51 92 L51 87 Q32 97 13 87 Z" fill="#cc2200"/>
+    <ellipse cx="32" cy="98" rx="12" ry="6" fill="#aa1800" opacity="0.7"/>
+    <polygon points="18,92 20,100 22,92" fill="white"/>
+    <polygon points="25,93 27,101 29,93" fill="white"/>
+    <polygon points="35,93 37,101 39,93" fill="white"/>
+    <polygon points="42,92 44,100 46,92" fill="white"/>
+    <ellipse cx="32" cy="102" rx="7" ry="4" fill="#ff6688" opacity="0.8"/>`;
+  return `<svg viewBox="0 0 64 108" xmlns="http://www.w3.org/2000/svg">${body}${head}${face}${biting?open:closed}</svg>`;
+}
+
+// ── BUILD LAGOON ──────────────────────────────────────────────────────────────
+let caves=[], gators=[];
+
+function buildLagoon(){
+  const lagoon = document.getElementById('lagoon');
+  lagoon.querySelectorAll('.cave-pillar,.cave-top-bar,.gator,.splash').forEach(e=>e.remove());
+  caves=[];
+
+  const wrap = document.getElementById('lagoon-wrap');
+  LAGOON_W = wrap.offsetWidth  || window.innerWidth;
+  LAGOON_H = wrap.offsetHeight || Math.round(window.innerHeight * 0.8);
+
+  // Panel is ~38% of lagoon height, min 88px — slightly thicker
+  PANEL_H = Math.max(88, Math.round(LAGOON_H * 0.38));
+
+  // Slot dimensions: width = 1/7 of lagoon width (generous for 5 slots)
+  SLOT_W  = Math.round(LAGOON_W / 7.5);
+  SLOT_H  = PANEL_H - 8;
+
+  // Gator scales to slot
+  GATOR_W = Math.round(SLOT_W * 0.92);
+  GATOR_H = Math.round(GATOR_W * (108/64));
+
+  // BITE_Y computed first — needed for gator target
+  BITE_Y = PANEL_H + Math.max(50, (LAGOON_H - PANEL_H) * 0.82);
+
+  document.getElementById('bite-line').style.top = BITE_Y + 'px';
+
+  // Build 6 yellow pillars: left edge, between each pair of slots, right edge.
+  // Slot centres are at spacing*(i+1). Pillar spans from right edge of left slot
+  // to left edge of right slot, plus edge pillars to screen edges.
+  const spacing = LAGOON_W / (NUM_CAVES + 1);
+  const slotCentres = [];
+  for(let i=0; i<NUM_CAVES; i++) slotCentres.push(Math.round(spacing*(i+1)));
+
+  // Pillar boundaries: [0, slotCentres[0]-SLOT_W/2], between slots, [last+SLOT_W/2, LAGOON_W]
+  const pillarRanges = [];
+  // Left edge pillar
+  pillarRanges.push([0, slotCentres[0] - Math.floor(SLOT_W/2)]);
+  // Between slots
+  for(let i=0; i<NUM_CAVES-1; i++){
+    pillarRanges.push([slotCentres[i] + Math.ceil(SLOT_W/2), slotCentres[i+1] - Math.floor(SLOT_W/2)]);
+  }
+  // Right edge pillar
+  pillarRanges.push([slotCentres[NUM_CAVES-1] + Math.ceil(SLOT_W/2), LAGOON_W]);
+
+  pillarRanges.forEach(([x1, x2])=>{
+    if(x2 <= x1) return;
+    const p = document.createElement('div');
+    p.className = 'cave-pillar';
+    p.style.cssText = `left:${x1}px; width:${x2-x1}px; height:${PANEL_H}px;`;
+    lagoon.appendChild(p);
+  });
+
+  // Horizontal top bar — fixed 8px, spans full width
+  const bar = document.createElement('div');
+  bar.className = 'cave-top-bar';
+  bar.style.cssText = `left:0; right:0; height:8px;`;
+  lagoon.appendChild(bar);
+
+  // Store cave centres for gator positioning
+  slotCentres.forEach(x => caves.push({x}));
+
+  gators = caves.map((_,i) => ({
+    ci: i,                  // cave index (position)
+    pidx: 0,                // personality index — assigned per spawn
+    x: caves[i].x,
+    state: ST.HIDDEN, el: null,
+    y: 0, targetY: 0, speed: 0,
+    willBite: true, timer: null, recoilTarget: 0,
+  }));
+}
+
+function createGatorEl(g, biting=false){
+  const lagoon = document.getElementById('lagoon');
+  const el = document.createElement('div');
+  el.className = 'gator';
+  el.style.width = GATOR_W + 'px';
+  el.style.left  = g.x + 'px';
+  // Start fully inside slot (body hidden behind yellow panel bar)
+  const startY = PANEL_H - GATOR_H;
+  el.style.top = startY + 'px';
+  el.style.clipPath = ''; // no clip needed — panel bar masks body, slot-inner water is seamless
+  const inner = document.createElement('div');
+  inner.className = 'gator-inner';
+  inner.innerHTML = makeGatorSVG(g.pidx, biting);
+  el.appendChild(inner);
+  el.addEventListener('pointerdown', e=>{ e.preventDefault(); onGatorTap(g); });
+  lagoon.appendChild(el);
+  g.el = el;
+  g.y  = startY;
+  spawnSplash(g.x, PANEL_H + 6);
+}
+
+function updateGatorSVG(g, biting){
+  if(!g.el) return;
+  const inner = g.el.querySelector('.gator-inner');
+  if(inner) inner.innerHTML = makeGatorSVG(g.pidx, biting);
+}
+
+function removeGatorEl(g){ if(g.el){ g.el.remove(); g.el=null; } }
+
+function spawnSplash(x, y){
+  const lagoon = document.getElementById('lagoon');
+  const s = document.createElement('div');
+  s.className = 'splash';
+  const sz = Math.round(GATOR_W * 0.8);
+  s.style.cssText = `left:${x}px;top:${y}px;width:${sz}px;height:${Math.round(sz*0.36)}px;`;
+  lagoon.appendChild(s);
+  setTimeout(()=>s.remove(), 460);
+}
+
+// ── GAME STATE ────────────────────────────────────────────────────────────────
+let G = {
+  whacks:0, bites:0, running:false, streak:0,
+  timeLeft:50, bonus:false, bonusEarned:false, mainWhacks:0,
+  hiScore: parseInt(localStorage.getItem('gator_hi')||'0'),
+  animFrame:null, lastTime:0, spawnTimers:[],
+};
+
+function clearAllTimers(){
+  G.spawnTimers.forEach(t=>clearTimeout(t)); G.spawnTimers=[];
+  gators.forEach(g=>clearTimeout(g.timer));
+  if(G.animFrame){ cancelAnimationFrame(G.animFrame); G.animFrame=null; }
+}
+
+// ── HUD ───────────────────────────────────────────────────────────────────────
+function updateHUD(){
+  const net = Math.max(0, G.whacks - G.bites);
+  document.getElementById('whacks-val').textContent = G.whacks;
+  document.getElementById('bites-val').textContent  = G.bites;
+  document.getElementById('score-val').textContent  = net;
+  document.getElementById('timer-val').textContent  = Math.ceil(G.timeLeft);
+  document.getElementById('timer-val').classList.toggle('urgent', G.timeLeft<=10 && !G.bonus);
+  const anyBiting = gators.some(g=>g.state===ST.BITING||g.state===ST.EXTENDED);
+  document.getElementById('bite-line').classList.toggle('danger', anyBiting);
+}
+
+function bumpEl(id){ const el=document.getElementById(id); el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); }
+function setStatus(t){ document.getElementById('status-text').textContent=t; }
+function flashScreen(c){ const el=document.getElementById('screen-flash'); el.style.background=c; el.style.opacity='1'; el.style.transition='none'; requestAnimationFrame(()=>{ el.style.transition='opacity 0.3s ease'; el.style.opacity='0'; }); }
+function showFloat(el, text, color){
+  const rect=el.getBoundingClientRect();
+  const f=document.createElement('div'); f.className='float-txt'; f.textContent=text; f.style.color=color;
+  f.style.left=(rect.left+rect.width/2-22)+'px'; f.style.top=(rect.top+4)+'px';
+  document.body.appendChild(f); setTimeout(()=>f.remove(), 560);
+}
+
+// ── STREAK FLAVOR ─────────────────────────────────────────────────────────────
+function streakStatus(n){
+  if(n>=7) return '💥 Rampage!';
+  if(n>=6) return '🔥 Unstoppable!';
+  if(n>=5) return '🔥 On fire!';
+  if(n>=4) return 'Keep it up!';
+  if(n>=3) return 'Nice combo!';
+  return null;
+}
+
+// ── ADAPTIVE DIFFICULTY ───────────────────────────────────────────────────────
+const ADAPT = {
+  factor:1.0, consecutiveBites:0,
+  recentOpps:[], recoveryWhacks:0, lastCheckBonus:10,
+};
+
+function adaptReset(){
+  ADAPT.factor=1.0; ADAPT.consecutiveBites=0;
+  ADAPT.recentOpps=[]; ADAPT.recoveryWhacks=0; ADAPT.lastCheckBonus=10;
+}
+
+function adaptRecordWhack(){
+  ADAPT.consecutiveBites=0;
+  ADAPT.recentOpps.push('w');
+  if(ADAPT.recentOpps.length>10) ADAPT.recentOpps.shift();
+  if(ADAPT.factor<1.0){
+    ADAPT.recoveryWhacks++;
+    ADAPT.factor = Math.min(1.0, ADAPT.factor+0.06);
+  }
+}
+
+function adaptRecordBite(){
+  ADAPT.consecutiveBites++;
+  ADAPT.recentOpps.push('b');
+  if(ADAPT.recentOpps.length>10) ADAPT.recentOpps.shift();
+  ADAPT.recoveryWhacks=0;
+  _recalcMainFactor();
+}
+
+function _recalcMainFactor(){
+  // Bite-rate signal: relief starts at 15%, strong at 25%
+  let brf=1.0;
+  if(ADAPT.recentOpps.length>=5){
+    const b = ADAPT.recentOpps.filter(r=>r==='b').length;
+    const rate = b / ADAPT.recentOpps.length;
+    if(rate>0.15) brf = Math.max(0.42, 1.0-(rate-0.15)/0.85*0.95);
+  }
+  // Consecutive bites signal
+  let cf=1.0;
+  if(ADAPT.consecutiveBites>=2) cf = Math.max(0.42, 1.0-(ADAPT.consecutiveBites-1)*0.10);
+  ADAPT.factor = Math.min(brf, cf);
+}
+
+function getAdaptiveFactor(){
+  if(G.bonus){
+    const checkpoints=[8,5];
+    for(const cp of checkpoints){
+      if(G.timeLeft<=cp && ADAPT.lastCheckBonus>cp){
+        ADAPT.lastCheckBonus=cp;
+        const net=G.whacks-G.bites;
+        if(net>=85){ ADAPT.factor=1.0; break; }
+        const proj=net+G.timeLeft*3.0*0.80;
+        if(proj>=85){ ADAPT.factor=1.0; break; }
+        ADAPT.factor=Math.max(0.55,1.0-((85-proj)/85)*0.85);
+        break;
+      }
+    }
+    return ADAPT.factor;
+  }
+  return ADAPT.factor;
+}
+
+// ── SPEED / BITE HELPERS ──────────────────────────────────────────────────────
+function getProgress(){ return 1-(G.timeLeft/(G.bonus?10:50)); }
+
+function getEmergeSpeed(pidx){
+  // Speeds reduced ~40% vs previous to account for ~2x longer travel distance
+  const p=getProgress(), base=G.bonus?0.16:0.052, max=G.bonus?0.28:0.155;
+  const f=getAdaptiveFactor();
+  const pm=PERSONALITIES[pidx].emergeSpeedMult;
+  return (base+(max-base)*p)*pm*f*(0.82+Math.random()*0.36);
+}
+
+function getRetreatSpeed(fast=false){ return fast ? 0.5+Math.random()*0.2 : 0.28+Math.random()*0.1; }
+
+// Compute willBite accounting for adaptive factor and phase
+// phase 1: base 50% → scales down with factor
+// phase 2+: base 100% → mercy window opens at low factor
+function computeWillBite(phase){
+  const f = getAdaptiveFactor();
+  if(phase===1){
+    // 50% at factor 1.0, down to ~10% at factor 0.42
+    const prob = 0.5 * f + 0.10 * (1-f);
+    return Math.random() < prob;
+  } else {
+    // Always bite at full factor; mercy scales in below factor 0.75
+    if(f >= 0.75) return true;
+    // At factor 0.42, ~25% chance of no bite
+    const mercy = (0.75-f)/0.33 * 0.25;
+    return Math.random() > mercy;
+  }
+}
+
+// ── GATOR ACTIONS ─────────────────────────────────────────────────────────────
+function randPersonality(){ return Math.floor(Math.random()*PERSONALITIES.length); }
+
+function emergeGator(ci, phase=2){
+  const g = gators[ci];
+  if(g.state !== ST.HIDDEN) return false;
+  clearTimeout(g.timer);
+
+  // Assign a random personality each spawn
+  g.pidx     = randPersonality();
+  g.willBite = computeWillBite(phase);
+  g.state    = ST.EMERGING;
+  g.speed    = getEmergeSpeed(g.pidx);
+  // targetY: lagoon-relative top of gator when snout reaches BITE_Y
+  // gator snout is at y + GATOR_H, so targetY = BITE_Y - GATOR_H
+  g.targetY  = BITE_Y - GATOR_H;
+
+  createGatorEl(g, false);
+  SFX.emerge();
+  return true;
+}
+
+function startRetreat(g, fast){
+  if(g.state===ST.HIDDEN || g.state===ST.RETREATING) return;
+  clearTimeout(g.timer);
+  g.el && g.el.classList.remove('biting','recoiling');
+  updateGatorSVG(g, false);
+  g.state = ST.RETREATING;
+  g.speed = getRetreatSpeed(fast);
+}
+
+function doBite(g){
+  if(g.state!==ST.BITING || !G.running) return;
+  G.bites++; G.streak=0;
+  SFX.bite(); flashScreen('rgba(255,40,20,0.4)');
+  if(g.el) showFloat(g.el,'CHOMP!','#ff4422');
+  bumpEl('bites-val'); updateHUD();
+  setStatus(`OUCH! ${G.bites} bite${G.bites!==1?'s':''}!`);
+  if(!G.bonus) adaptRecordBite();
+  g.state=ST.RETREATING; g.el&&g.el.classList.remove('biting');
+  updateGatorSVG(g,false); g.speed=getRetreatSpeed(true);
+}
+
+function onGatorTap(g){
+  if(!G.running) return;
+  const hittable = g.state===ST.EMERGING||g.state===ST.BITING||g.state===ST.RECOILING||g.state===ST.RETREATING;
+  if(!hittable) return;
+  clearTimeout(g.timer); g.el&&g.el.classList.remove('biting'); updateGatorSVG(g,false);
+  G.whacks++; G.streak++;
+  if(!G.bonus) G.mainWhacks++;
+  if(!G.bonus) adaptRecordWhack();
+  SFX.whack(); flashScreen('rgba(255,220,68,0.15)');
+  if(g.el) showFloat(g.el,'WHACK!','#ffdd44');
+  bumpEl('whacks-val'); updateHUD();
+  const sm = streakStatus(G.streak);
+  setStatus(sm || `${G.whacks} whack${G.whacks!==1?'s':''}!`);
+  g.state=ST.RECOILING; g.el&&g.el.classList.add('recoiling');
+  g.recoilTarget=g.y-12; g.speed=0.48;
+  setTimeout(()=>{ if(g.el) g.el.classList.remove('recoiling'); }, 140);
+}
+
+// ── GAME LOOP ─────────────────────────────────────────────────────────────────
+function gameLoop(ts){
+  if(!G.running) return;
+  const dt = Math.min(50, ts-(G.lastTime||ts));
+  G.lastTime=ts; G.timeLeft=Math.max(0,G.timeLeft-dt/1000);
+  updateHUD();
+
+  if(G.timeLeft<=0){
+    if(G.bonus){ endGame(); return; }
+    if(G.mainWhacks>=40 && !G.bonusEarned){ startBonus(); }
+    else{ endGame(); return; }
+  }
+
+  gators.forEach(g=>{
+    if(!g.el) return;
+    if(g.state===ST.EMERGING){
+      g.y+=g.speed*dt; g.el.style.top=g.y+'px';
+      if(g.y>=g.targetY){
+        g.y=g.targetY; g.el.style.top=g.y+'px';
+        if(g.willBite){
+          g.state=ST.BITING; g.el.classList.add('biting'); updateGatorSVG(g,true);
+          const f=getAdaptiveFactor();
+          const pm=PERSONALITIES[g.pidx].biteWindowMult;
+          const baseWin=G.bonus?110+Math.random()*70:170+Math.random()*110;
+          g.timer=setTimeout(()=>doBite(g), (baseWin*pm)/f);
+        } else {
+          g.state=ST.EXTENDED;
+          g.timer=setTimeout(()=>startRetreat(g,false), 260+Math.random()*180);
+        }
+      }
+    } else if(g.state===ST.RETREATING||g.state===ST.RECOILING){
+      g.y-=g.speed*dt; g.el.style.top=g.y+'px';
+      if(g.state===ST.RECOILING && g.y<=g.recoilTarget){ g.state=ST.RETREATING; g.speed=getRetreatSpeed(true); }
+      if(g.y <= PANEL_H - GATOR_H){ g.state=ST.HIDDEN; removeGatorEl(g); }
+    }
+  });
+
+  G.animFrame=requestAnimationFrame(gameLoop);
+}
+
+// ── WAVE SCHEDULER ────────────────────────────────────────────────────────────
+function shuffle(arr){ for(let i=arr.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[arr[i],arr[j]]=[arr[j],arr[i]];}return arr; }
+
+function scheduleWaves(){
+  const events=[]; let t=1400;
+  while(t<14000){ events.push({t,caves:[Math.floor(Math.random()*5)],phase:1}); t+=2500+Math.random()*900; }
+  while(t<28000){ const n=Math.random()<0.45?2:1; events.push({t,caves:shuffle([0,1,2,3,4]).slice(0,n),phase:2}); t+=1650+Math.random()*650; }
+  while(t<42000){ const n=2+Math.floor(Math.random()*2); events.push({t,caves:shuffle([0,1,2,3,4]).slice(0,n),phase:3}); t+=1120+Math.random()*520; }
+  while(t<49500){ const n=3+Math.floor(Math.random()*2); events.push({t,caves:shuffle([0,1,2,3,4]).slice(0,n),phase:4}); t+=660+Math.random()*350; }
+
+  events.forEach(ev=>{
+    const timer=setTimeout(()=>{
+      if(!G.running||G.bonus) return;
+      // Adaptive density: at low factor, randomly skip some caves
+      const f=getAdaptiveFactor();
+      let caves=ev.caves;
+      if(f<0.80 && caves.length>1){
+        // Drop caves proportionally — keep at least 1
+        caves=caves.filter(()=>Math.random()<(f/0.80));
+        if(caves.length===0) caves=[ev.caves[0]];
+      }
+      caves.forEach(ci=>emergeGator(ci, ev.phase));
+    }, ev.t);
+    G.spawnTimers.push(timer);
+  });
+}
+
+// ── COORDINATED BONUS WAVES ───────────────────────────────────────────────────
+// Five named patterns. Each fires as a unit, sometimes with staggered sub-delays.
+const BONUS_PATTERNS=[
+  // FLANK: outer two
+  (cb)=>{ [0,4].forEach(ci=>{ const t=setTimeout(()=>{ if(!G.running)return; emergeGator(ci,2); },0); G.spawnTimers.push(t); }); cb(); },
+  // CENTER RUSH: inner three simultaneously
+  (cb)=>{ [1,2,3].forEach(ci=>{ const t=setTimeout(()=>{ if(!G.running)return; emergeGator(ci,2); },0); G.spawnTimers.push(t); }); cb(); },
+  // SWEEP LEFT→RIGHT: staggered 90ms
+  (cb)=>{ [0,1,2,3,4].forEach((ci,i)=>{ const t=setTimeout(()=>{ if(!G.running)return; emergeGator(ci,2); },i*90); G.spawnTimers.push(t); }); cb(); },
+  // BLITZ: all five at once
+  (cb)=>{ [0,1,2,3,4].forEach(ci=>{ const t=setTimeout(()=>{ if(!G.running)return; emergeGator(ci,2); },0); G.spawnTimers.push(t); }); cb(); },
+  // PINCER: 0+4 first, then 1+3, then 2
+  (cb)=>{ [[0,4],[1,3],[2]].forEach((group,gi)=>{ group.forEach(ci=>{ const t=setTimeout(()=>{ if(!G.running)return; emergeGator(ci,2); },gi*160); G.spawnTimers.push(t); }); }); cb(); },
+];
+
+function scheduleBonusWaves(){
+  G.spawnTimers.forEach(t=>clearTimeout(t)); G.spawnTimers=[];
+  const patternQueue=shuffle([...Array(BONUS_PATTERNS.length).keys()]);
+  let pi=0;
+  let t=400;
+
+  function nextPattern(){
+    if(!G.running||G.timeLeft<=0) return;
+    const idx=patternQueue[pi%patternQueue.length]; pi++;
+    const gap=520+Math.random()*320;
+    BONUS_PATTERNS[idx](()=>{});
+    const timer=setTimeout(nextPattern, gap);
+    G.spawnTimers.push(timer);
+    t+=gap;
+  }
+
+  const startTimer=setTimeout(nextPattern, t);
+  G.spawnTimers.push(startTimer);
+}
+
+// ── GAME FLOW ─────────────────────────────────────────────────────────────────
+function startGame(){
+  document.getElementById('title-screen').classList.add('hidden');
+  document.getElementById('gameover-screen').classList.add('hidden');
+  G.whacks=0; G.bites=0; G.running=true; G.streak=0;
+  G.timeLeft=50; G.bonus=false; G.bonusEarned=false; G.mainWhacks=0; G.lastTime=0;
+  adaptReset(); buildLagoon(); updateHUD();
+  setStatus('Whack fast — every gator bites!');
+  document.getElementById('bonus-label').style.display='none';
+  SFX.start(); scheduleWaves();
+  G.animFrame=requestAnimationFrame(gameLoop);
+}
+
+function startBonus(){
+  G.bonus=true; G.bonusEarned=true; G.timeLeft=10; G.streak=0;
+  ADAPT.factor=1.0; ADAPT.lastCheckBonus=10;
+  gators.forEach(g=>{ if(g.state!==ST.HIDDEN) startRetreat(g,true); });
+  const banner=document.getElementById('bonus-banner');
+  banner.style.display='block';
+  banner.classList.remove('banner-anim'); void banner.offsetWidth; banner.classList.add('banner-anim');
+  setTimeout(()=>{ banner.style.display='none'; }, 1200);
+  SFX.bonus(); flashScreen('rgba(255,220,68,0.35)');
+  setStatus('⚡ BONUS — go go go!');
+  document.getElementById('bonus-label').style.display='block';
+  setTimeout(()=>scheduleBonusWaves(), 600);
+}
+
+function endGame(){
+  G.running=false; clearAllTimers();
+  gators.forEach(g=>{ clearTimeout(g.timer); if(g.el) removeGatorEl(g); });
+  document.getElementById('bite-line').classList.remove('danger');
+  const net=Math.max(0,G.whacks-G.bites);
+  const isNew=net>G.hiScore;
+  if(isNew){ localStorage.setItem('gator_hi',net); G.hiScore=net; }
+  SFX.end();
+  const rank=getRank(net);
+  document.getElementById('go-title').textContent = G.bonusEarned?'⚡ BONUS CLEARED!':"TIME'S UP!";
+  document.getElementById('final-score-el').textContent = net;
+  document.getElementById('final-rank-el').textContent  = rank.text;
+  document.getElementById('final-rank-el').style.color  = rank.color;
+  document.getElementById('final-detail-el').textContent= `${G.whacks} whacks · ${G.bites} bites${G.bonusEarned?' · Bonus reached!':''}`;
+  document.getElementById('go-hi-el').textContent = Math.max(net,G.hiScore);
+  const nr=document.getElementById('new-record-el');
+  if(isNew&&net>0) nr.classList.remove('hidden'); else nr.classList.add('hidden');
+  setTimeout(()=>document.getElementById('gameover-screen').classList.remove('hidden'), 500);
+}
+
+function getRank(s){
+  if(s>=80) return {text:'⭐ Expert',     color:'#ffdd88'};
+  if(s>=60) return {text:'😊 Good',       color:'#88ffaa'};
+  if(s>=40) return {text:'🙂 Not Bad',    color:'#88ccff'};
+  if(s>=20) return {text:'😅 Try Harder', color:'#aaaaaa'};
+  return          {text:'😬 Give Up?',    color:'#888888'};
+}
+
+// ── DOUBLE-TAP ZOOM PREVENTION ────────────────────────────────────────────────
+// Blocks in-page double-tap zoom on touch screens without affecting
+// OS-level accessibility zoom or keyboard/screen reader navigation.
+let lastTap = 0;
+document.addEventListener('touchend', e => {
+  const now = Date.now();
+  if (now - lastTap < 300) e.preventDefault();
+  lastTap = now;
+}, { passive: false });
+
+// ── SCREEN ORIENTATION ────────────────────────────────────────────────────────
+function tryLockLandscape(){
+  try{
+    const sc=window.screen;
+    if(sc.orientation&&sc.orientation.lock) sc.orientation.lock('landscape').catch(()=>{});
+  }catch(e){}
+}
+document.addEventListener('pointerdown', tryLockLandscape, {once:true});
+
+// ── INIT ─────────────────────────────────────────────────────────────────────
+buildLagoon();
+document.getElementById('title-hi').textContent = G.hiScore;
+
+document.getElementById('start-btn').addEventListener('pointerdown', startGame);
+document.getElementById('restart-btn').addEventListener('pointerdown', ()=>{
+  document.getElementById('gameover-screen').classList.add('hidden');
+  setTimeout(startGame, 150);
+});
+document.getElementById('menu-btn').addEventListener('pointerdown', ()=>{
+  G.running=false; clearAllTimers();
+  gators.forEach(g=>{ if(g.el) removeGatorEl(g); });
+  document.getElementById('bite-line').classList.remove('danger');
+  document.getElementById('gameover-screen').classList.add('hidden');
+  document.getElementById('title-screen').classList.remove('hidden');
+  document.getElementById('title-hi').textContent=G.hiScore;
+});
+document.getElementById('vol-btn').addEventListener('pointerdown', ()=>{
+  soundOn=!soundOn;
+  document.getElementById('vol-btn').textContent=soundOn?'🔊':'🔇';
+});
+window.addEventListener('resize', ()=>{ if(!G.running) buildLagoon(); });
+</script>
+</body>
+</html>

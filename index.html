@@ -107,9 +107,10 @@
     }
 
     .game-card:nth-child(1) { animation-delay: 0.05s; --c: var(--accent1); }
-    .game-card:nth-child(2) { animation-delay: 0.12s; --c: var(--accent2); }
-    .game-card:nth-child(3) { animation-delay: 0.19s; --c: var(--accent3); }
-    .game-card:nth-child(4) { animation-delay: 0.26s; --c: var(--accent5); }
+    .game-card:nth-child(2) { animation-delay: 0.12s; --c: var(--accent3); }
+    .game-card:nth-child(3) { animation-delay: 0.19s; --c: var(--accent2); }
+    .game-card:nth-child(4) { animation-delay: 0.26s; --c: var(--accent4); }
+    .game-card:nth-child(5) { animation-delay: 0.33s; --c: var(--accent5); }
 
     @keyframes cardIn {
       from { opacity: 0; transform: translateY(22px); }
@@ -196,8 +197,8 @@
 <body>
 
 <header>
-    <h1>Wanikaze Arcade</h1>
-    <p class="subtitle">Pick a game &amp; start playing</p>
+    <h1>Wanikaze's Arcade</h1>
+    <p class="subtitle">Pick a game &amp; start playing!</p>
   </header>
 
   <main>
@@ -210,11 +211,11 @@
       <div class="play-btn">PLAY</div>
     </a>
 
-    <a class="game-card" href="popit-color-mix.html">
-      <span class="emoji">🎨</span>
+    <a class="game-card" href="gator-panic.html">
+      <span class="emoji">🐊</span>
       <div class="info">
-        <div class="game-name">Pop It Color Mix</div>
-        <div class="game-desc">Match the colors, pop the bubbles</div>
+        <div class="game-name">Gator Panic</div>
+        <div class="game-desc">Snap! Don't let the gators escape</div>
       </div>
       <div class="play-btn">PLAY</div>
     </a>
@@ -222,17 +223,26 @@
     <a class="game-card" href="popit-pro.html">
       <span class="emoji">⭐</span>
       <div class="info">
-        <div class="game-name">Pop It Pro</div>
+        <div class="game-name">Pop It! Pro</div>
         <div class="game-desc">The ultimate popping challenge</div>
       </div>
       <div class="play-btn">PLAY</div>
     </a>
 
-<a class="game-card" href="popit-go.html">
+    <a class="game-card" href="popit-go.html">
       <span class="emoji">💥</span>
       <div class="info">
-        <div class="game-name">Pop It Go</div>
+        <div class="game-name">Pop It! Go</div>
         <div class="game-desc">Fast-paced popping frenzy</div>
+      </div>
+      <div class="play-btn">PLAY</div>
+    </a>
+
+    <a class="game-card" href="popit-color-mix.html">
+      <span class="emoji">🎨</span>
+      <div class="info">
+        <div class="game-name">Pop It! Color Mix</div>
+        <div class="game-desc">Match the colors, pop the bubbles</div>
       </div>
       <div class="play-btn">PLAY</div>
     </a>
