@@ -23,8 +23,6 @@ Just open `index.html` in any modern web browser, or visit the live GitHub Pages
 
 ---
 <div align="center">
-
-**Repository Views**<br>
-![GitHub Hit Counter](https://hits.seeyoufarm.com/api/count/incr/badge.svg?url=https%3A%2F%2Fgithub.com%2Fwanikaze%2Fgames&count_bg=%23FF4D6D&title_bg=%231A1A2E&icon=github.svg&icon_color=%23E7E7E7&title=Repository+Views&edge_flat=false)
-
+  **Repository Views**<br>
+  <img src="https://count.getloli.com/get/@wanikaze-arcade-github" alt="GitHub Hit Counter" />
 </div>
