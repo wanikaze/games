@@ -878,6 +878,17 @@ document.getElementById('menu-btn').addEventListener('pointerdown',()=>{
   setStatus(''); setModeLabel('Select a game'); setScore(0); setInfo('—');
   updateHiDisplay();
 });
+
+// ── DOUBLE-TAP ZOOM PREVENTION ────────────────────────────────────────────────
+// Blocks in-page double-tap zoom on touch screens without affecting
+// OS-level accessibility zoom or keyboard/screen reader navigation.
+let lastTap = 0;
+document.addEventListener('touchend', e => {
+  const now = Date.now();
+  if (now - lastTap < 300) e.preventDefault();
+  lastTap = now;
+}, { passive: false });
+  
 </script>
 </body>
 </html>
