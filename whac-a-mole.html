@@ -578,6 +578,17 @@ document.getElementById('hi-val').textContent   =G.hiScore;
 document.getElementById('title-hi').textContent =G.hiScore;
 document.getElementById('start-btn').addEventListener('pointerdown',startGame);
 document.getElementById('restart-btn').addEventListener('pointerdown',()=>setTimeout(startGame,150));
+
+// ── DOUBLE-TAP ZOOM PREVENTION ────────────────────────────────────────────────
+// Blocks in-page double-tap zoom on touch screens without affecting
+// OS-level accessibility zoom or keyboard/screen reader navigation.
+let lastTap = 0;
+document.addEventListener('touchend', e => {
+  const now = Date.now();
+  if (now - lastTap < 300) e.preventDefault();
+  lastTap = now;
+}, { passive: false });
+
 </script>
 </body>
 </html>
