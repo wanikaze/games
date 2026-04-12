@@ -20,3 +20,9 @@ This project was built from the ground up using HTML, CSS, and vanilla JavaScrip
 
 ## 💡 How to Play
 Just open `index.html` in any modern web browser, or visit the live GitHub Pages link!
+
+---
+<div align="center">
+  **Repository Views**<br>
+  <img src="https://count.getloli.com/get/@wanikaze-arcade-github" alt="GitHub Hit Counter" />
+</div>
