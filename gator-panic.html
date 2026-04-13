@@ -386,18 +386,19 @@ let PANEL_H, SLOT_W, SLOT_H, GATOR_W, GATOR_H, BITE_Y, LAGOON_W, LAGOON_H;
 // emergeSpeedMult > 1 = rises faster; biteWindowMult > 1 = more time before bite
 const PERSONALITIES = [
   {
-    // 0 DIZZY — spiral eyes, slow, long window
+    // 0 DIZZY — true spiral eyes, slow, long window
     name:'Dizzy', bodyColor:'#3aaa3a', bellyColor:'#c8e8a0',
     emergeSpeedMult:0.88, biteWindowMult:1.20,
     face:(dk)=>`
       <circle cx="18" cy="68" r="8" fill="white" stroke="${dk}" stroke-width="1.5"/>
       <circle cx="46" cy="68" r="8" fill="white" stroke="${dk}" stroke-width="1.5"/>
-      <path d="M18 64 a5 5 0 1 1 0.01 0 M18 65.5 a3.5 3.5 0 1 1 0.01 0 M18 67 a2 2 0 1 1 0.01 0"
-            fill="none" stroke="#333" stroke-width="1.1" stroke-linecap="round"/>
-      <path d="M46 64 a5 5 0 1 1 0.01 0 M46 65.5 a3.5 3.5 0 1 1 0.01 0 M46 67 a2 2 0 1 1 0.01 0"
-            fill="none" stroke="#333" stroke-width="1.1" stroke-linecap="round"/>
-      <circle cx="18" cy="68" r="1.2" fill="#333"/>
-      <circle cx="46" cy="68" r="1.2" fill="#333"/>
+      
+      <path d="M 18 68 a 1.2 1.2 0 0 0 2.4 0 a 2.4 2.4 0 0 0 -4.8 0 a 3.6 3.6 0 0 0 7.2 0 a 4.8 4.8 0 0 0 -9.6 0 a 6 6 0 0 0 12 0" 
+            fill="none" stroke="#222" stroke-width="1.2" stroke-linecap="round"/>
+            
+      <path d="M 46 68 a 1.2 1.2 0 0 1 2.4 0 a 2.4 2.4 0 0 1 -4.8 0 a 3.6 3.6 0 0 1 7.2 0 a 4.8 4.8 0 0 1 -9.6 0 a 6 6 0 0 1 12 0" 
+            fill="none" stroke="#222" stroke-width="1.2" stroke-linecap="round"/>
+            
       <line x1="26" y1="68" x2="38" y2="68" stroke="${dk}" stroke-width="1.8"/>`,
   },
   {
