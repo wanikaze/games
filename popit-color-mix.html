@@ -275,6 +275,12 @@ body::before {
 .btn-purple { background: linear-gradient(180deg, #cc66ff, #8822cc); color: #fff; text-shadow: 0 1px 0 rgba(0,0,0,0.2); }
 .btn-cyan   { background: linear-gradient(180deg, #44ffcc, #00aaaa); color: #1a0a2e; }
 .btn-back   { background: rgba(255,255,255,0.1); color: var(--text); border: 1px solid var(--panel-border); box-shadow: none; }
+.back-link {
+  font-family: 'Fredoka One', cursive; font-size: 13px;
+  color: rgba(240,230,255,0.35); text-decoration: none; letter-spacing: 1px;
+  transition: color 0.15s ease;
+}
+.back-link:hover { color: rgba(240,230,255,0.7); }
 </style>
 </head>
 <body>
@@ -345,6 +351,7 @@ body::before {
   <div id="title-vol">
     <button id="title-vol-btn">🔊 Sound: ON</button>
   </div>
+  <a class="back-link" href="index.html">← Back to Arcade</a>
 </div>
 
 <div class="screen hidden" id="gameover-screen">
@@ -357,6 +364,7 @@ body::before {
   </div>
   <button class="btn btn-purple" id="restart-btn">Play Again</button>
   <button class="btn btn-back"   id="menu-btn">← Menu</button>
+  <a class="back-link" href="index.html">← Back to Arcade</a>
 </div>
 
 <script>
@@ -1155,17 +1163,6 @@ document.getElementById('menu-btn').addEventListener('pointerdown',()=>{
   setScore(0); setInfo('—');
   updateHiDisplay();
 });
-
-  // ── DOUBLE-TAP ZOOM PREVENTION ────────────────────────────────────────────────
-// Blocks in-page double-tap zoom on touch screens without affecting
-// OS-level accessibility zoom or keyboard/screen reader navigation.
-let lastTap = 0;
-document.addEventListener('touchend', e => {
-  const now = Date.now();
-  if (now - lastTap < 300) e.preventDefault();
-  lastTap = now;
-}, { passive: false });
-  
 </script>
 </body>
 </html>

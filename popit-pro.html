@@ -245,6 +245,12 @@ body::before {
 .btn:active { transform:translateY(3px); box-shadow:0 1px 0 rgba(0,0,0,0.15); }
 .btn-blue { background:linear-gradient(180deg,#44ccff,#0088cc); color:#fff; text-shadow:0 1px 0 rgba(0,0,0,0.2); }
 .btn-back { background:rgba(255,255,255,0.4); color:#004a70; border:1px solid rgba(255,255,255,0.6); box-shadow:none; font-size:14px; padding:9px 22px; }
+.back-link {
+  font-family:'Fredoka One',cursive; font-size:13px;
+  color:rgba(0,60,100,0.45); text-decoration:none; letter-spacing:1px;
+  transition:color 0.15s ease;
+}
+.back-link:hover { color:rgba(0,60,100,0.8); }
 </style>
 </head>
 <body>
@@ -312,6 +318,7 @@ body::before {
     </div>
   </div>
   <button id="title-vol-btn">🔊 Sound: ON</button>
+  <a class="back-link" href="index.html">← Back to Arcade</a>
 </div>
 
 <!-- Game over -->
@@ -325,6 +332,7 @@ body::before {
   </div>
   <button class="btn btn-blue" id="restart-btn">Play Again</button>
   <button class="btn btn-back" id="menu-btn">← Menu</button>
+  <a class="back-link" href="index.html">← Back to Arcade</a>
 </div>
 
 <script>
@@ -878,17 +886,6 @@ document.getElementById('menu-btn').addEventListener('pointerdown',()=>{
   setStatus(''); setModeLabel('Select a game'); setScore(0); setInfo('—');
   updateHiDisplay();
 });
-
-// ── DOUBLE-TAP ZOOM PREVENTION ────────────────────────────────────────────────
-// Blocks in-page double-tap zoom on touch screens without affecting
-// OS-level accessibility zoom or keyboard/screen reader navigation.
-let lastTap = 0;
-document.addEventListener('touchend', e => {
-  const now = Date.now();
-  if (now - lastTap < 300) e.preventDefault();
-  lastTap = now;
-}, { passive: false });
-  
 </script>
 </body>
 </html>
